@@ -47,9 +47,6 @@ canvas {
 
 	<label for="inputEccentricity">Eccentricity:</label>
 	<input type="number" max="1" step="0.1" value="0.5" id="inputEccentricity">
-	Parametrs:
-	<select id="inputParametr" >
-	</select>
 
 	<br>
 
@@ -59,22 +56,8 @@ canvas {
 <script>
 
 let chart = document.getElementById('chart')
-let inputParametr = document.getElementById('inputParametr')
-// let datalistParametrs = document.getElementById('parametrs')
 let inputEccentricity = document.getElementById('inputEccentricity');
 inputEccentricity.onchange = run
-
-let parametrsNames = ['alpha', 'x', 'y', 'speed', 'interval', 'date', 'dateIdeal', 'diff', 'Epot', 'Ekin']
-parametrsNames.forEach(parametr => {
-	let option = document.createElement('option')
-	option.value = parametr
-	option.innerText = parametr
-	inputParametr.append(option)
-})
-inputParametr.onchange = function (event) {
-	let paramName = inputParametr.value
-	draw_graph( data_history.map( el => el[paramName]), paramName, 10, 10, 'red', 300, chart.height - 20)
-}
 
 
 						
@@ -105,8 +88,7 @@ let data_history = []
 let color_i = 0
 
 
-function run()
-{
+function run() {
 	const e = inputEccentricity.value
 	// const a = 200 //Semi-major axis
 	// const c = a * e
@@ -252,7 +234,7 @@ run()
 
 
 
-function draw_graph(data, param, x_start, y_start,  color='pink', width=100, height=50, format = n => n.toFixed(2)){
+function draw_graph(data, param, x_start, y_start,  color='pink', width=100, height=50, format = n => n.toFixed(2)) {
 	let ctx = document.getElementById('chart').getContext('2d')
 	
 	let max = Math.max(...data)
@@ -297,8 +279,7 @@ function draw_graph(data, param, x_start, y_start,  color='pink', width=100, hei
 	ctx.stroke()
 }
 
-function calcR1R2(Perihelion, Aphelion, c, percent)
-{
+function calcR1R2(Perihelion, Aphelion, c, percent) {
 	let R2_plus_R1 = Perihelion + Aphelion
 	let maxDelta = Aphelion - Perihelion
 	let R2 = Perihelion + maxDelta*percent
@@ -308,49 +289,23 @@ function calcR1R2(Perihelion, Aphelion, c, percent)
 }
 
 
-function calcDotPosition(R1, R2, c, percent)
-{
+function calcDotPosition(R1, R2, c, percent) {
 	let x = (R2**2 - R1**2) / (4 * c)
 	let y = Math.sqrt(R2**2 - (c + x)**2)
 
 	return {x, y}
 }
 
-function calcDotPosition2(a, b, alpha)
-{
+function calcDotPosition2(a, b, alpha) {
 	let x = a * Math.cos(alpha)
 	let y = b * Math.sin(alpha)
 
 	return {x, y}
 }
 
-function calcOrbitalSpeed(r, a)
-{
+function calcOrbitalSpeed(r, a) {
 	return Math.sqrt(μ*(2/r - 1/a))
 }
-
-
-
-	// for (let i = 0; i <= 100; i++) {
-	// 	let {R1, R2} = calcR1R2(Perihelion, Aphelion, c, i/100)
-	// 	let {x, y} = calcDotPosition(R1, R2, c, i/100)
-
-	// 	let speed = calcOrbitalSpeed(R1*k_Earth, a*k_Earth)
-
-	// 	let hue = Math.round(15 + (1 - (speed / speed_Perihelion)) * 60)
-	// 	// let lit = Math.round(50 - (1 - (speed / speed_Perihelion)) * 10)
-
-	// 	ctx.strokeStyle = `hsl(${hue},100%,48%)`;
- 
-	// 	ctx.strokeRect(x_centr - x, y_centr + y, 1, 1);
-	// 	ctx.strokeRect(x_centr - x, y_centr - y, 1, 1);
-
-	// 	// ctx.lineTo(x_centr + x, y_centr + y);
-
-	// 	console.log(`x=${x.toFixed(1)}, y=${y.toFixed(1)}, speed=${speed.toFixed(0)}`)
-	// }
-	// ctx.stroke();
-
 
 
 
