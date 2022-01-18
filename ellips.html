@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0px;
+	user-select: none;
+}
+
+
+.panelMenu {
+	padding: 0.3rem 0.5rem;
+}  
+
+/* .buttonMenu {
+	padding: 0px 5px;
+	text-align: center;
+	line-height: 100%; 
+} */
+
+
+canvas {
+	border: 1px solid #4d4e53;
+	/* color:#4d5353; */
+}
+
+
+
+</style>
+
+	<title>Ellips</title>
+	<link rel="shortcut icon" type="image/vnd.microsoft.icon" href="./ellips.png" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+</head>
+<body>
+	<div class="panelMenu" id="panelMenu">
+
+		<button class="buttonMenu" onclick="clear_overlay()">clear</button> 
+		<button class="buttonMenu" onclick="run()">run</button> 
+		<button class="buttonSetE_Earth" onclick="setE_Earth()">Set e of Earth</button> 
+ 
+	</div>
+
+	<label for="inputEccentricity">Eccentricity:</label>
+	<input type="number" max="1" step="0.1" value="0.5" id="inputEccentricity">
+	Parametrs:
+	<select id="inputParametr" >
+	</select>
+
+	<br>
+
+	<canvas id="overlay" width="1100" height="500"></canvas>	
+	<canvas id="chart" width="1200" height="200"></canvas>	
+
+<script>
+
+let chart = document.getElementById('chart')
+let inputParametr = document.getElementById('inputParametr')
+// let datalistParametrs = document.getElementById('parametrs')
+let inputEccentricity = document.getElementById('inputEccentricity');
+inputEccentricity.onchange = run
+
+let parametrsNames = ['alpha', 'x', 'y', 'speed', 'interval', 'date', 'dateIdeal', 'diff', 'Epot', 'Ekin']
+parametrsNames.forEach(parametr => {
+	let option = document.createElement('option')
+	option.value = parametr
+	option.innerText = parametr
+	inputParametr.append(option)
+})
+inputParametr.onchange = function (event) {
+	let paramName = inputParametr.value
+	draw_graph( data_history.map( el => el[paramName]), paramName, 10, 10, 'red', 300, chart.height - 20)
+}
+
+
+						
+function clear_overlay() {
+	let c = document.getElementById('overlay')
+	c.getContext('2d').clearRect(0, 0, c.width, c.height)
+
+	c = document.getElementById('chart')
+	c.getContext('2d').clearRect(0, 0, c.width, c.height)	
+}
+
+
+function setE_Earth() {
+	inputEccentricity.value = e_Earth
+	run()
+}
+
+const G = 6.6743E-11
+const M_Sun = 1.9885E+30
+const μ	= G * M_Sun
+const PerihelionEarth = 147_098_290_000
+const e_Earth = 0.01671123
+const M_Earth = 5.9726E24
+
+const secInDay = 60 * 60 * 24
+
+let data_history = []
+let color_i = 0
+
+
+function run()
+{
+	const e = inputEccentricity.value
+	// const a = 200 //Semi-major axis
+	// const c = a * e
+	// const Perihelion = a - c
+	// const Aphelion = a + c
+
+	const Perihelion = 50
+	const a = Perihelion / (1 - e) //Semi-major axis
+	const b = a *  Math.sqrt(1 - e*e) //Semi-minor axis
+	const c = a * e
+	const Aphelion = a + c
+
+	const k_Earth = PerihelionEarth / Perihelion
+
+	const x_centr = a + 20
+	const y_centr = 250
+	
+
+	let ctx = document.getElementById('overlay').getContext('2d')
+
+
+	ctx.lineWidth = 5
+	ctx.strokeStyle = 'orange'
+
+	// Draw Ellips focus
+	// ctx.strokeRect(x_centr - c, y_centr, 5, 5)
+	ctx.beginPath()
+	ctx.ellipse(x_centr - c, y_centr, 4, 4, 0, 0, 2 * Math.PI)
+	ctx.stroke()
+
+	ctx.lineWidth = 1
+	ctx.strokeStyle = 'black'
+	// ctx.beginPath()
+	// ctx.moveTo(x_centr, y_centr)
+	// let first
+
+	let speed_Perihelion = calcOrbitalSpeed(Perihelion*k_Earth, a*k_Earth)
+	let speed_Aphelion = calcOrbitalSpeed(Aphelion*k_Earth, a*k_Earth)
+
+	let LenOrbit = 4 * (Math.PI * a*b + (a-b)**2) / (a+b)
+
+	let l1 = 3 * ((a-b) / (a+b))**2
+	let LenOrbit2 = Math.PI * (a+b) * (1 + l1 / (10 + Math.sqrt(4 - l1)) )  
+
+	let aE = a * k_Earth
+	let Period = 2 * Math.PI * Math.sqrt((aE**3) / μ)
+	
+	console.log(`--------- Perihelion=${Perihelion.toFixed(1)}, Aphelion=${Aphelion.toFixed(1)}, e=${e} ----------`)
+
+
+	let meanSpeedReached = false
+	let halfPeriodReached = false
+	let prevPos 
+	let prevSpeed = 0
+	let sumIntervals = 0
+	let numMeanSpeedReached = 0
+	let numHalfPeriodReached = 0
+
+	data_history = []
+
+	let startDaySeconds = new Date("01.01.2022").getTime()
+
+	for (let alpha = 0; alpha <= 360; alpha+=3) {
+		let alphaRad = alpha/180*Math.PI
+		let curPos = calcDotPosition2(a, b, alphaRad)
+		let {x, y} = curPos
+		let FX = x - c
+		R1 = Math.sqrt(FX*FX + y*y)
+
+		let speed = calcOrbitalSpeed(R1*k_Earth, a*k_Earth)
+
+		let deltaX = 0
+		let deltaY = 0
+		if (prevPos) {
+			deltaX = x - prevPos.x
+			deltaY = y - prevPos.y
+		}
+
+		let prevDistance = Math.sqrt(deltaX**2 + deltaY**2)
+		let interval = prevDistance*k_Earth / speed
+		sumIntervals += interval
+
+		let date = new Date(startDaySeconds + sumIntervals * 1000)
+		let dayIdeal = alpha / 360 * 365.25
+		let dateIdeal = new Date(startDaySeconds + dayIdeal *secInDay*1000)
+
+
+		let Epot = M_Earth * (μ / (R1*k_Earth))
+		let Ekin = M_Earth * speed**2 / 2
+
+		let hue = Math.round(15 + (1 - (speed / speed_Perihelion)) * 60)
+		let lit = Math.round(50 - (1 - (speed / speed_Perihelion)) * 15)
+		let meanSpeed = (speed_Aphelion + speed_Perihelion) / 2
+
+		if (speed < meanSpeed && !meanSpeedReached) {
+			ctx.strokeStyle = `hsl(230, 100%, 40%)`
+			meanSpeedReached = true
+			numMeanSpeedReached = alpha
+		} else if (sumIntervals > (Period / 4) && !halfPeriodReached) {
+			ctx.strokeStyle = `hsl(120, 100%, 20%)`
+			halfPeriodReached = true
+			numHalfPeriodReached = alpha
+		}
+		else	
+			ctx.strokeStyle = `hsl(${hue}, 100%, ${lit}%)`
+ 
+		ctx.strokeRect(x_centr - x, y_centr + y, 1, 1)
+
+		prevPos = curPos
+		prevSpeed = speed
+
+		console.log(`alpha=${alpha}, x=${x.toFixed(1)}, y=${y.toFixed(1)}, speed=${speed.toFixed(0)}, t=${(interval/secInDay).toFixed(2)},`,
+		`date= ${date.toLocaleString('ru')}, dateIdeal= ${dateIdeal.toLocaleString('ru')}, diff=${((date-dateIdeal) / (1000*60*60)).toFixed(2)}`)
+		//  `Epot=${Epot.toExponential(1)}, Ekin=${Ekin.toExponential(1)}, Epot-Ekin=${(Epot - Ekin).toExponential(1)}`
+
+		data_history.push({alpha, x, y, speed, interval, date, dateIdeal, diff: date-dateIdeal, Epot, Ekin})
+	}
+
+	console.log(`L orbit1=${(LenOrbit*k_Earth).toFixed(0)}`)
+	console.log(`L orbit2=${(LenOrbit2*k_Earth).toFixed(0)}`)
+
+	let T_days = Period/secInDay
+	console.log(`T orbit=${T_days.toFixed(2)} days, ${(T_days/365.25).toFixed(1)} years`)
+	console.log(`sumIntervals=${(sumIntervals / secInDay).toFixed(2)} days, error=${(Period - sumIntervals).toFixed(2)} s`)
+
+	console.log(`numMeanSpeedReached=${numMeanSpeedReached}, numHalfPeriodReached=${numHalfPeriodReached}`)
+
+	let colors = ['Black', 'Blue', 'Green', 'Brown', 'Pink', 'Orange', 'Purple', 'Grey', 'Yellow', 'Red']
+	let color = colors[color_i % colors.length]
+	color_i++
+
+	let chartHeight = chart.height - 20
+	draw_graph( data_history.map( el => el['speed']),    'speed',    0,   10, color, 190, chartHeight, n => n.toFixed(0))
+	draw_graph( data_history.map( el => el['interval']), 'interval', 200, 10, color, 190, chartHeight, n => (n / secInDay).toFixed(2))
+	draw_graph( data_history.map( el => el['date']),     'date',     400, 10, color, 190, chartHeight, n => (new Date(n)).toLocaleDateString())
+	draw_graph( data_history.map( el => el['diff']),     'diff, h',  600, 10, color, 190, chartHeight, n => (n / (1000*60*60)).toFixed(2))
+	draw_graph( data_history.map( el => el['Epot']),     'Epot',     800, 10, color, 190, chartHeight, n => n.toExponential(1))
+	draw_graph( data_history.map( el => el['Ekin']),     'Ekin',     1000, 10, color, 190, chartHeight, n => n.toExponential(1))
+
+}
+run()
+
+
+
+
+function draw_graph(data, param, x_start, y_start,  color='pink', width=100, height=50, format = n => n.toFixed(2)){
+	let ctx = document.getElementById('chart').getContext('2d')
+	
+	let max = Math.max(...data)
+	let min =  Math.min(...data)
+
+	let range = max - min
+	if (range < min/1000000) range = min/1000000
+	let yscale = height / range
+	// let xscale = 1
+	let xscale = width / data.length
+	//console.log(label, yscale)
+
+	let axis_color = 'black'
+	let y_axisX = y_start + Math.trunc(height / 2)
+
+	ctx.lineWidth = 1
+	ctx.beginPath() // X axis
+	ctx.strokeStyle = axis_color
+	ctx.moveTo(x_start, y_axisX)
+	ctx.lineTo(x_start + width, y_axisX)
+	ctx.stroke()
+	
+	ctx.beginPath() // Y axis
+	ctx.moveTo(x_start, y_start)
+	ctx.lineTo(x_start, y_start + height)
+	ctx.stroke()
+
+	// ctx.lineWidth = 2
+	ctx.fillStyle = color
+	ctx.font = "12px Arial" // label
+	ctx.fillText(param, x_start + width / 2, y_start)
+
+	ctx.fillText(format(max), x_start + 5, y_start + 12)
+	ctx.fillText(format(min), x_start + 5, height + 12)
+
+	ctx.moveTo(x_start, height)
+	ctx.beginPath()
+	ctx.strokeStyle = color
+	for (let i=0; i<data.length; i++) {
+		ctx.lineTo(x_start + i * xscale, height + y_start - (data[i] - min)*yscale)
+	}
+	ctx.stroke()
+}
+
+function calcR1R2(Perihelion, Aphelion, c, percent)
+{
+	let R2_plus_R1 = Perihelion + Aphelion
+	let maxDelta = Aphelion - Perihelion
+	let R2 = Perihelion + maxDelta*percent
+	let R1 = R2_plus_R1 - R2
+
+	return {R1, R2}
+}
+
+
+function calcDotPosition(R1, R2, c, percent)
+{
+	let x = (R2**2 - R1**2) / (4 * c)
+	let y = Math.sqrt(R2**2 - (c + x)**2)
+
+	return {x, y}
+}
+
+function calcDotPosition2(a, b, alpha)
+{
+	let x = a * Math.cos(alpha)
+	let y = b * Math.sin(alpha)
+
+	return {x, y}
+}
+
+function calcOrbitalSpeed(r, a)
+{
+	return Math.sqrt(μ*(2/r - 1/a))
+}
+
+
+
+	// for (let i = 0; i <= 100; i++) {
+	// 	let {R1, R2} = calcR1R2(Perihelion, Aphelion, c, i/100)
+	// 	let {x, y} = calcDotPosition(R1, R2, c, i/100)
+
+	// 	let speed = calcOrbitalSpeed(R1*k_Earth, a*k_Earth)
+
+	// 	let hue = Math.round(15 + (1 - (speed / speed_Perihelion)) * 60)
+	// 	// let lit = Math.round(50 - (1 - (speed / speed_Perihelion)) * 10)
+
+	// 	ctx.strokeStyle = `hsl(${hue},100%,48%)`;
+ 
+	// 	ctx.strokeRect(x_centr - x, y_centr + y, 1, 1);
+	// 	ctx.strokeRect(x_centr - x, y_centr - y, 1, 1);
+
+	// 	// ctx.lineTo(x_centr + x, y_centr + y);
+
+	// 	console.log(`x=${x.toFixed(1)}, y=${y.toFixed(1)}, speed=${speed.toFixed(0)}`)
+	// }
+	// ctx.stroke();
+
+
+
+
+
+
+
+</script>
+
+
+</body>
+</html>
