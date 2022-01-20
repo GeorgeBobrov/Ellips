@@ -16,19 +16,32 @@ body {
 	padding: 0.3rem 0.5rem;
 }  
 
-/* .buttonMenu {
-	padding: 0px 5px;
-	text-align: center;
-	line-height: 100%; 
-} */
 
+#canvas_conteiner {
+	position: relative;
+	width: 1100px;
+	height: 500px;  
+	margin-bottom: 5px;
+}
 
 canvas {
 	border: 1px solid #4d4e53;
 	/* color:#4d5353; */
+	/* position: absolute; */
 }
 
 
+#planet {
+	border: 2px solid green;
+	border-radius: 50%;
+	position: absolute;
+	width: 5px;
+	height: 5px;  
+	left: 1px;
+	top: 1px;
+
+	transform: translate(-50%, -50%);
+}
 
 </style>
 
@@ -48,14 +61,20 @@ canvas {
 	<label for="inputEccentricity">Eccentricity:</label>
 	<input type="number" max="1" step="0.1" value="0.5" id="inputEccentricity">
 
+	<input type = "checkbox" id="cbPause" >
+	<label for="cbPause">PauseAnimation</label>
 	<br>
-
-	<canvas id="overlay" width="1100" height="500"></canvas>	
+	<div id="canvas_conteiner" >
+		<canvas id="overlay" width="1100" height="500"></canvas>
+		<div  id="planet" ></div>
+	</div>
 	<canvas id="chart" width="1200" height="200"></canvas>	
 
 <script>
 
 let chart = document.getElementById('chart')
+let planet = document.getElementById('planet')
+let checkboxPause = document.getElementById('cbPause')
 let inputEccentricity = document.getElementById('inputEccentricity');
 inputEccentricity.onchange = run
 
@@ -84,9 +103,20 @@ const M_Earth = 5.9726E24
 
 const secInDay = 60 * 60 * 24
 
+let Perihelion = 0
+let a = 0 //Semi-major axis
+let b = 0 //Semi-minor axis
+let c = 0
+let Aphelion = 0
+
+let k_Earth = 0
+
+let x_EllipsCentr = 0
+let y_EllipsCentr = 0
+
 let data_history = []
 let color_i = 0
-
+let animationStartTime = 0
 
 function run() {
 	const e = inputEccentricity.value
@@ -95,16 +125,16 @@ function run() {
 	// const Perihelion = a - c
 	// const Aphelion = a + c
 
-	const Perihelion = 50
-	const a = Perihelion / (1 - e) //Semi-major axis
-	const b = a *  Math.sqrt(1 - e*e) //Semi-minor axis
-	const c = a * e
-	const Aphelion = a + c
+	Perihelion = 50
+	a = Perihelion / (1 - e) //Semi-major axis
+	b = a *  Math.sqrt(1 - e*e) //Semi-minor axis
+	c = a * e
+	Aphelion = a + c
 
-	const k_Earth = PerihelionEarth / Perihelion
+	k_Earth = PerihelionEarth / Perihelion
 
-	const x_centr = a + 20
-	const y_centr = 250
+	x_EllipsCentr = a + 20
+	y_EllipsCentr = 250
 	
 
 	let ctx = document.getElementById('overlay').getContext('2d')
@@ -116,7 +146,7 @@ function run() {
 	// Draw Ellips focus
 	// ctx.strokeRect(x_centr - c, y_centr, 5, 5)
 	ctx.beginPath()
-	ctx.ellipse(x_centr - c, y_centr, 4, 4, 0, 0, 2 * Math.PI)
+	ctx.ellipse(x_EllipsCentr - c, y_EllipsCentr, 4, 4, 0, 0, 2 * Math.PI)
 	ctx.stroke()
 
 	ctx.lineWidth = 1
@@ -195,7 +225,7 @@ function run() {
 		else	
 			ctx.strokeStyle = `hsl(${hue}, 100%, ${lit}%)`
  
-		ctx.strokeRect(x_centr - x, y_centr + y, 1, 1)
+		ctx.strokeRect(x_EllipsCentr - x, y_EllipsCentr + y, 1, 1)
 
 		prevPos = curPos
 		prevSpeed = speed
@@ -228,6 +258,8 @@ function run() {
 	draw_graph( data_history.map( el => el['Epot']),     'Epot',     800, 10, color, 190, chartHeight, n => n.toExponential(1))
 	draw_graph( data_history.map( el => el['Ekin']),     'Ekin',     1000, 10, color, 190, chartHeight, n => n.toExponential(1))
 
+	animationStartTime = performance.now();
+	requestAnimationFrame(animate)
 }
 run()
 
@@ -307,10 +339,31 @@ function calcOrbitalSpeed(r, a) {
 	return Math.sqrt(μ*(2/r - 1/a))
 }
 
+let duration_ms = 5000;
 
 
+function animate(time) 
+{
+	let timeFraction = (time - animationStartTime) / duration_ms
+	if (timeFraction > 1) timeFraction = 1
 
+	let x = x_EllipsCentr - a * Math.cos(timeFraction*2*Math.PI)
+	let y = y_EllipsCentr - b * Math.sin(timeFraction*2*Math.PI)
 
+	// planet.style.left = x + "px"; 
+	// planet.style.top = y + "px";
+	planet.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
+
+	if (timeFraction < 1 && !checkboxPause.checked) {
+		requestAnimationFrame(animate)
+	}
+
+}
+
+checkboxPause.onclick = function (event) {
+	if (!checkboxPause.checked) 
+		requestAnimationFrame(animate)
+}
 
 </script>
 
