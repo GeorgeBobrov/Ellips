@@ -61,6 +61,9 @@ canvas {
 	<label for="inputEccentricity">Eccentricity:</label>
 	<input type="number" max="1" step="0.1" value="0.5" id="inputEccentricity">
 
+	<label for="inputPeroid">Peroid:</label>
+	<input type="number" max="100000" step="1000" value="5000" id="inputPeroid">	
+
 	<input type = "checkbox" id="cbPause" >
 	<label for="cbPause">PauseAnimation</label>
 	<br>
@@ -76,6 +79,7 @@ let chart = document.getElementById('chart')
 let planet = document.getElementById('planet')
 let checkboxPause = document.getElementById('cbPause')
 let inputEccentricity = document.getElementById('inputEccentricity');
+let inputPeroid = document.getElementById('inputPeroid');
 inputEccentricity.onchange = run
 
 
@@ -96,7 +100,7 @@ function setE_Earth() {
 
 const G = 6.6743E-11
 const Mass_Sun = 1.9885E+30
-const μ	= G * Mass_Sun
+const mu = G * Mass_Sun
 const PerihelionEarth = 147_098_290_000
 const eccentricity_Earth = 0.01671123
 const Mass_Earth = 5.9726E24
@@ -167,7 +171,7 @@ function run() {
 	let LenOrbit2 = Math.PI * (a+b) * (1 + l1 / (10 + Math.sqrt(4 - l1)) )  
 
 	let aE = a * k_Earth
-	Period = 2 * Math.PI * Math.sqrt((aE**3) / μ)
+	Period = 2 * Math.PI * Math.sqrt((aE**3) / mu)
 	
 	console.log(`--------- Perihelion=${Perihelion.toFixed(1)}, Aphelion=${Aphelion.toFixed(1)}, e=${e} ----------`)
 
@@ -208,7 +212,7 @@ function run() {
 		let dateIdeal = new Date(startDaySeconds + dayIdeal *secInDay*1000)
 
 
-		let Epot = Mass_Earth * (μ / (R*k_Earth))
+		let Epot = Mass_Earth * (mu / (R*k_Earth))
 		let Ekin = Mass_Earth * speed**2 / 2
 
 		let hue = Math.round(15 + (1 - (speed / speed_Perihelion)) * 60)
@@ -260,7 +264,7 @@ function run() {
 	draw_graph( data_history.map( el => el['Epot']),     'Epot',     800, 10, color, 190, chartHeight, n => n.toExponential(1))
 	draw_graph( data_history.map( el => el['Ekin']),     'Ekin',     1000, 10, color, 190, chartHeight, n => n.toExponential(1))
 
-	startAnimation(5000)
+	startAnimation(inputPeroid.value)
 }
 run()
 
@@ -337,62 +341,59 @@ function calcDotPosition2(a, b, alpha) {
 }
 
 function calcOrbitalSpeed(r, a) {
-	return Math.sqrt(μ*(2/r - 1/a))
+	return Math.sqrt(mu*(2/r - 1/a))
 }
 
 
 
 function startAnimation(duration_ms) {
-	proportionTime = Period / duration_ms
-	planet.prevTime = performance.now();
+	proportionTime = Period / (duration_ms / 1000)
+	planet.prevTime_ms = performance.now();
 	planet.curPos = calcDotPosition2(a, b, 0)
+	planet.speedX = 0
+	planet.speedY = calcOrbitalSpeed(Perihelion*k_Earth, a*k_Earth)
 
 	cancelAnimationFrame(animationId)
-	animationId = requestAnimationFrame(animate)
+	animationId = requestAnimationFrame(animateFrame)
 }
 
-function animate(time) 
+function animateFrame(time_ms) 
 {
-	let curTheta = 0
-	if (planet.prevPos) {
-		let deltaX = planet.curPos.x - planet.prevPos.x
-		let deltaY = planet.curPos.y - planet.prevPos.y
-		curTheta = Math.atan2(deltaY, deltaX)
-	}
 
 	let R = Math.sqrt((planet.curPos.x - c)**2 + planet.curPos.y**2)
-	let speed = calcOrbitalSpeed(R*k_Earth, a*k_Earth)	
+	let speed = calcOrbitalSpeed(R*k_Earth, a*k_Earth)
 
-	let newDistance = speed * (time - planet.prevTime) * proportionTime
-	newDistance /= k_Earth
+	console.log('timePast=', (time_ms - planet.prevTime_ms).toFixed(2))
+	let timePast = (time_ms - planet.prevTime_ms) / 1000
+	if (timePast < 0) timePast = 0 
 
-	let new_x = planet.curPos.x + newDistance * Math.cos(curTheta)
-	let new_y = planet.curPos.y + newDistance * Math.sin(curTheta)
+	let gravAcceleration = -mu / (R*k_Earth)**2
+	let gravSpeed = gravAcceleration * timePast * proportionTime
+	let gravAngle = Math.atan2(planet.curPos.y, planet.curPos.x - c)
+	let gravSpeedX = gravSpeed * Math.cos(gravAngle)
+	let gravSpeedY = gravSpeed * Math.sin(gravAngle)
 
-	
-	let alpha_x = Math.acos(clamp(new_x / a, -1, 1)) //    0   .. pi
-	let alpha_y = Math.asin(clamp(new_y / b, -1, 1)) // - pi/2 .. pi/2
-	if (new_x < 0) alpha_y = Math.PI - alpha_y
-	if (new_y < 0) alpha_x = 2 * Math.PI - alpha_x
-	if (alpha_y < 0) alpha_y = 2 * Math.PI + alpha_y
+	planet.speedX += gravSpeedX
+	planet.speedY += gravSpeedY
 
-	let alpha = (alpha_x + alpha_y) / 2
+	let new_x = planet.curPos.x + (planet.speedX / k_Earth) * timePast * proportionTime
+	let new_y = planet.curPos.y + (planet.speedY / k_Earth) * timePast * proportionTime
 
-	let newPos = calcDotPosition2(a, b, alpha)
+	let newPos = {x: new_x, y: new_y}
 
 	// console.log(`new_x=${new_x.toFixed(2)}, new_y=${new_y.toFixed(2)}, alpha_x=${alpha_x.toFixed(4)}, alpha_y=${alpha_y.toFixed(4)}, newPos=`, newPos)
 
 	planet.style.transform = `translate(calc(-50% + ${x_EllipsCentr - newPos.x}px), calc(-50% + ${y_EllipsCentr - newPos.y}px))`
 	planet.prevPos = planet.curPos
 	planet.curPos = newPos
-	planet.prevTime = time
+	planet.prevTime_ms = time_ms
 
-	animationId = requestAnimationFrame(animate)
+	animationId = requestAnimationFrame(animateFrame)
 }
 
 checkboxPause.onclick = function (event) {
 	if (!checkboxPause.checked) 
-		animationId = requestAnimationFrame(animate)
+		animationId = requestAnimationFrame(animateFrame)
 	else
 		cancelAnimationFrame(animationId)
 }
