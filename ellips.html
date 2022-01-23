@@ -54,7 +54,7 @@ canvas {
 
 		<button class="buttonMenu" onclick="clear_overlay()">clear</button> 
 		<button class="buttonMenu" onclick="run()">run</button> 
-		<button class="buttonSetE_Earth" onclick="setE_Earth()">Set e of Earth</button> 
+		<button class="buttonSetE_Earth" onclick="setEccentricityEarth()">Set e of Earth</button> 
  
 	</div>
 
@@ -93,7 +93,7 @@ function clear_overlay() {
 }
 
 
-function setE_Earth() {
+function setEccentricityEarth() {
 	inputEccentricity.value = eccentricity_Earth
 	run()
 }
@@ -101,7 +101,7 @@ function setE_Earth() {
 const G = 6.6743E-11
 const Mass_Sun = 1.9885E+30
 const mu = G * Mass_Sun
-const PerihelionEarth = 147_098_290_000
+const Perihelion_Earth = 147_098_290_000
 const eccentricity_Earth = 0.01671123
 const Mass_Earth = 5.9726E24
 
@@ -118,7 +118,7 @@ let sizeKoef = 0
 let ellipsCentr_x = 0
 let ellipsCentr_y = 0
 
-let data_history = []
+let dataHistory = []
 let color_i = 0
 let animationStartTime = 0
 let Period = 0
@@ -138,7 +138,7 @@ function run() {
 	c = a * e
 	Aphelion = a + c
 
-	sizeKoef = PerihelionEarth / Perihelion
+	sizeKoef = Perihelion_Earth / Perihelion
 
 	ellipsCentr_x = a + 20
 	ellipsCentr_y = 250
@@ -179,7 +179,7 @@ function run() {
 	let numMeanSpeedReached = 0
 	let numHalfPeriodReached = 0
 
-	data_history = []
+	dataHistory = []
 
 	let startDaySeconds = new Date("01.01.2022").getTime()
 
@@ -235,7 +235,7 @@ function run() {
 		`date= ${date.toLocaleString('ru')}, dateIdeal= ${dateIdeal.toLocaleString('ru')}, diff=${((date-dateIdeal) / (1000*60*60)).toFixed(2)}`)
 		//  `Epot=${Epot.toExponential(1)}, Ekin=${Ekin.toExponential(1)}, Epot-Ekin=${(Epot - Ekin).toExponential(1)}`
 
-		data_history.push({alpha, x, y, speed, interval, date, dateIdeal, diff: date-dateIdeal, Epot, Ekin})
+		dataHistory.push({alpha, x, y, speed, interval, date, dateIdeal, diff: date-dateIdeal, Epot, Ekin})
 	}
 
 	console.log(`L orbit1=${(LenOrbit*sizeKoef).toFixed(0)}`)
@@ -252,12 +252,12 @@ function run() {
 	color_i++
 
 	let chartHeight = chart.height - 20
-	draw_graph( data_history.map( el => el['speed']),    'speed',    0,   10, color, 190, chartHeight, n => n.toFixed(0))
-	draw_graph( data_history.map( el => el['interval']), 'interval', 200, 10, color, 190, chartHeight, n => (n / secInDay).toFixed(2))
-	draw_graph( data_history.map( el => el['date']),     'date',     400, 10, color, 190, chartHeight, n => (new Date(n)).toLocaleDateString())
-	draw_graph( data_history.map( el => el['diff']),     'diff, h',  600, 10, color, 190, chartHeight, n => (n / (1000*60*60)).toFixed(2))
-	draw_graph( data_history.map( el => el['Epot']),     'Epot',     800, 10, color, 190, chartHeight, n => n.toExponential(1))
-	draw_graph( data_history.map( el => el['Ekin']),     'Ekin',     1000, 10, color, 190, chartHeight, n => n.toExponential(1))
+	drawGraph( dataHistory.map( el => el['speed']),    'speed',    0,   10, color, 190, chartHeight, n => n.toFixed(0))
+	drawGraph( dataHistory.map( el => el['interval']), 'interval', 200, 10, color, 190, chartHeight, n => (n / secInDay).toFixed(2))
+	drawGraph( dataHistory.map( el => el['date']),     'date',     400, 10, color, 190, chartHeight, n => (new Date(n)).toLocaleDateString())
+	drawGraph( dataHistory.map( el => el['diff']),     'diff, h',  600, 10, color, 190, chartHeight, n => (n / (1000*60*60)).toFixed(2))
+	drawGraph( dataHistory.map( el => el['Epot']),     'Epot',     800, 10, color, 190, chartHeight, n => n.toExponential(1))
+	drawGraph( dataHistory.map( el => el['Ekin']),     'Ekin',     1000, 10, color, 190, chartHeight, n => n.toExponential(1))
 
 	startAnimation(inputPeroid.value)
 }
@@ -266,7 +266,7 @@ run()
 
 
 
-function draw_graph(data, param, x_start, y_start,  color='pink', width=100, height=50, format = n => n.toFixed(2)) {
+function drawGraph(data, param, start_x, start_y,  color='pink', width=100, height=50, format = n => n.toFixed(2)) {
 	let ctx = document.getElementById('chart').getContext('2d')
 	
 	let max = Math.max(...data)
@@ -280,33 +280,33 @@ function draw_graph(data, param, x_start, y_start,  color='pink', width=100, hei
 	//console.log(label, yscale)
 
 	let axis_color = 'black'
-	let y_axisX = y_start + Math.trunc(height / 2)
+	let axisX_y = start_y + Math.trunc(height / 2)
 
 	ctx.lineWidth = 1
 	ctx.beginPath() // X axis
 	ctx.strokeStyle = axis_color
-	ctx.moveTo(x_start, y_axisX)
-	ctx.lineTo(x_start + width, y_axisX)
+	ctx.moveTo(start_x, axisX_y)
+	ctx.lineTo(start_x + width, axisX_y)
 	ctx.stroke()
 	
 	ctx.beginPath() // Y axis
-	ctx.moveTo(x_start, y_start)
-	ctx.lineTo(x_start, y_start + height)
+	ctx.moveTo(start_x, start_y)
+	ctx.lineTo(start_x, start_y + height)
 	ctx.stroke()
 
 	// ctx.lineWidth = 2
 	ctx.fillStyle = color
 	ctx.font = "12px Arial" // label
-	ctx.fillText(param, x_start + width / 2, y_start)
+	ctx.fillText(param, start_x + width / 2, start_y)
 
-	ctx.fillText(format(max), x_start + 5, y_start + 12)
-	ctx.fillText(format(min), x_start + 5, height + 12)
+	ctx.fillText(format(max), start_x + 5, start_y + 12)
+	ctx.fillText(format(min), start_x + 5, height + 12)
 
-	ctx.moveTo(x_start, height)
+	ctx.moveTo(start_x, height)
 	ctx.beginPath()
 	ctx.strokeStyle = color
 	for (let i=0; i<data.length; i++) {
-		ctx.lineTo(x_start + i * xscale, height + y_start - (data[i] - min)*yscale)
+		ctx.lineTo(start_x + i * xscale, height + start_y - (data[i] - min)*yscale)
 	}
 	ctx.stroke()
 }
@@ -327,7 +327,7 @@ function calcOrbitalSpeed(r, a) {
 
 function startAnimation(duration_ms) {
 	simulationSpeedup = Period / (duration_ms / 1000)
-	planet.prevTime_ms = performance.now();
+	planet.prevTime_ms = performance.now()
 	planet.position = calcDotPosition2(a, b, 0)
 	planet.speedX = 0
 	planet.speedY = calcOrbitalSpeed(Perihelion*sizeKoef, a*sizeKoef)
@@ -336,26 +336,37 @@ function startAnimation(duration_ms) {
 	animationId = requestAnimationFrame(animateFrame)
 }
 
-function animateFrame(time_ms) {
-	let timePast = (time_ms - planet.prevTime_ms)
-	if (timePast < 0) timePast = 0 
+const simulationAccuracy = 0.01 //smaller is better 
 
-	let timeModelled = 0
-	while (timePast > timeModelled) {
-		let timeLeft = timePast - timeModelled
-		let timePart = (timeLeft > 1) ? 1 : timeLeft
-		modelNewPosition(timePart / 1000)
-		timeModelled += timePart
+function animateFrame(time_ms) {
+	let timePast_ms = (time_ms - planet.prevTime_ms)
+	if (timePast_ms < 0) timePast_ms = 0 
+
+	let timeSimulated_ms = 0
+	while (timePast_ms > timeSimulated_ms) {
+		let timeLeft_ms = timePast_ms - timeSimulated_ms
+
+		let maxScreenSpeed_px_ms = Math.max(Math.abs(planet.screenSpeedX), Math.abs(planet.screenSpeedY)) / 1000
+		let optimalInterval_ms = (maxScreenSpeed_px_ms > 0) ? (simulationAccuracy / maxScreenSpeed_px_ms) : simulationAccuracy
+
+		let timeToSimulate_ms = (timeLeft_ms > optimalInterval_ms) ? optimalInterval_ms : timeLeft_ms
+		simulateNewPosition(timeToSimulate_ms / 1000)
+		timeSimulated_ms += timeToSimulate_ms
 	}
-	// console.log(`new_x=${new_x.toFixed(2)}, new_y=${new_y.toFixed(2)}, alpha_x=${alpha_x.toFixed(4)}, alpha_y=${alpha_y.toFixed(4)}, newPos=`, newPos)
+	// console.log(`screenSpeedX=${planet.screenSpeedX?.toFixed(2)}, screenSpeedY=${planet.screenSpeedY?.toFixed(2)}`)
+	
+	// let colculationTime = performance.now() - time_ms
+	// if (colculationTime > 30)
+	// 	console.log('timeDiff=', (colculationTime).toFixed(4))
 
 	planet.style.transform = `translate(calc(-50% + ${ellipsCentr_x - planet.position.x}px), calc(-50% + ${ellipsCentr_y - planet.position.y}px))`
 	planet.prevTime_ms = time_ms
 
 	animationId = requestAnimationFrame(animateFrame)
 
-	function modelNewPosition(timePast_s) {
+	function simulateNewPosition(timePast_s) {
 		// console.log('timePast=', (timePast_s).toFixed(4))
+
 		let timePastSimulation = timePast_s * simulationSpeedup
 
 		let R = Math.sqrt((planet.position.x - c)**2 + planet.position.y**2)
@@ -370,8 +381,11 @@ function animateFrame(time_ms) {
 		planet.speedX += gravSpeedX
 		planet.speedY += gravSpeedY
 
-		planet.position.x += (planet.speedX / sizeKoef) * timePastSimulation
-		planet.position.y += (planet.speedY / sizeKoef) * timePastSimulation
+		planet.screenSpeedX = (planet.speedX / sizeKoef) * simulationSpeedup
+		planet.screenSpeedY = (planet.speedY / sizeKoef) * simulationSpeedup
+
+		planet.position.x += planet.screenSpeedX * timePast_s
+		planet.position.y += planet.screenSpeedY * timePast_s
 	}
 		
 }
@@ -379,6 +393,7 @@ function animateFrame(time_ms) {
 checkboxPause.onclick = function (event) {
 	if (!checkboxPause.checked) {
 		if (animationId == 0) {
+			planet.prevTime_ms = performance.now()
 			animationId = requestAnimationFrame(animateFrame)
 		}
 	} else {
