@@ -61,9 +61,6 @@ canvas {
 		<button onclick="run()">run</button> 
 		<button onclick="setEccentricityEarth()">Set e of Earth</button> 
 		<button id="buttonTestAnim" >TestAnim</button> 
-
-		<span class="animationIds" id="amimationID1">amimationID1</span>
-		<span class="animationIds" id="amimationID2">amimationID2</span>
  
 	</div>
 
@@ -120,38 +117,32 @@ const Mass_Earth = 5.9726E24
 
 const secInDay = 60 * 60 * 24
 
-let Perihelion = 0
-let a = 0 //Semi-major axis
-let b = 0 //Semi-minor axis
-let c = 0
-let Aphelion = 0
 
-let sizeKoef = 0
-
-let ellipsCentr_x = 0
-let ellipsCentr_y = 0
-
-let Period = 0
 let simulationSpeedup = 1
-let animationId = 0
 
 function run() {
+
 	const e = inputEccentricity.value
 	// const a = 200 //Semi-major axis
 	// const c = a * e
 	// const Perihelion = a - c
 	// const Aphelion = a + c
 
-	Perihelion = 50
-	a = Perihelion / (1 - e) //Semi-major axis
-	b = a * Math.sqrt(1 - e*e) //Semi-minor axis
-	c = a * e
-	Aphelion = a + c
+	let Perihelion = 50
+	let a = Perihelion / (1 - e) //Semi-major axis
+	let b = a * Math.sqrt(1 - e*e) //Semi-minor axis
+	let c = a * e
+	let Aphelion = a + c
 
-	sizeKoef = Perihelion_Earth / Perihelion
+	let sizeKoef = Perihelion_Earth / Perihelion
+	planet.sizeKoef = sizeKoef
+	planet.Perihelion = Perihelion_Earth
+	planet.a = a * sizeKoef
+	planet.b = b * sizeKoef
 
-	ellipsCentr_x = a + 20
-	ellipsCentr_y = 250
+	let ellipsCentr_x = a + 20
+	let ellipsCentr_y = 250
+
 
 
 	let ctx = scene.getContext('2d')
@@ -168,15 +159,16 @@ function run() {
 	ctx.lineWidth = 1
 	ctx.strokeStyle = 'black'
 
-	let speed_Perihelion = calcOrbitalSpeed(Perihelion*sizeKoef, a*sizeKoef)
-	let speed_Aphelion = calcOrbitalSpeed(Aphelion*sizeKoef, a*sizeKoef)
+	let speed_Perihelion = calcOrbitalSpeed(Perihelion*sizeKoef, planet.a)
+	let speed_Aphelion = calcOrbitalSpeed(Aphelion*sizeKoef, planet.a)
 
 	let LenOrbit = 4 * (Math.PI * a*b + (a-b)**2) / (a+b)
 
 	let l1 = 3 * ((a-b) / (a+b))**2
 	let LenOrbit2 = Math.PI * (a+b) * (1 + l1 / (10 + Math.sqrt(4 - l1)) )
 
-	Period = 2 * Math.PI * Math.sqrt((a * sizeKoef)**3 / mu)
+	let Period = 2 * Math.PI * Math.sqrt((planet.a)**3 / mu)
+	planet.Period = Period
 
 	console.log(`--------- Perihelion=${Perihelion.toFixed(1)}, Aphelion=${Aphelion.toFixed(1)}, e=${e} ----------`)
 
@@ -200,7 +192,7 @@ function run() {
 		let {x, y} = curPos
 		let R = Math.sqrt((x - c)**2 + y**2)
 
-		let speed = calcOrbitalSpeed(R*sizeKoef, a*sizeKoef)
+		let speed = calcOrbitalSpeed(R*sizeKoef, planet.a)
 
 		let deltaX = 0
 		let deltaY = 0
@@ -258,7 +250,7 @@ function run() {
 
 	console.log(`numMeanSpeedReached=${numMeanSpeedReached}, numHalfPeriodReached=${numHalfPeriodReached}`)
 
-	let colors = ['Black', 'Blue', 'Green', 'Brown', 'Pink', 'Orange', 'Purple', 'Grey', 'Yellow', 'Red']
+	let colors = ['Blue', 'Green', 'Brown', 'Pink', 'Orange', 'Purple', 'Grey', 'Yellow', 'Black', 'Red']
 	let color = colors[color_i % colors.length]
 	color_i++
 
@@ -272,7 +264,16 @@ function run() {
 	drawGraph( dataHistory.map( el => el['Ekin']),     'Ekin',     chart, 1000, 10, color, 190, chartHeight, n => n.toExponential(1))
 	/* eslint-enable */
 
-	startAnimation(inputPeroid.value)
+	// set gravity origin (Sun)
+	planet.origin_x = ellipsCentr_x - c
+	planet.origin_y = ellipsCentr_y
+	// set start position and speed
+	let {x, y} = calcDotPosition2(a, b, 0)
+	planet.position = {x: x - c, y}
+	planet.speedX = 0
+	planet.speedY = calcOrbitalSpeed(planet.Perihelion, planet.a)
+
+	startAnimation(inputPeroid.value, planet)
 }
 run()
 
@@ -338,117 +339,83 @@ function calcOrbitalSpeed(r, a) {
 
 
 
-function startAnimation(duration_ms) {
-	simulationSpeedup = Period / (duration_ms / 1000)
-	planet.prevTime_ms = performance.now()
-	planet.position = calcDotPosition2(a, b, 0)
-	planet.speedX = 0
-	planet.speedY = calcOrbitalSpeed(Perihelion*sizeKoef, a*sizeKoef)
+function startAnimation(duration_ms, body) {
+	simulationSpeedup = body.Period / (duration_ms / 1000)
+	body.prevTime_ms = performance.now()
 
-	cancelAnimationFrame(animationId)
-	animationId = requestAnimationFrame(animateFrame)
+	cancelAnimationFrame(body.animationId)
+	body.animationId = requestAnimationFrame(time => animateFrame(time, body))
 }
 
 const simulationAccuracy = 0.01 //smaller is better 
 
-function animateFrame(time_ms) {
-	let timePast_ms = (time_ms - planet.prevTime_ms)
+function animateFrame(time_ms, body) {
+	let timePast_ms = (time_ms - body.prevTime_ms)
 	if (timePast_ms < 0) timePast_ms = 0
 
 	let timeSimulated_ms = 0
 	while (timePast_ms > timeSimulated_ms) {
 		let timeLeft_ms = timePast_ms - timeSimulated_ms
 
-		let maxScreenSpeed_px_ms = Math.max(Math.abs(planet.screenSpeedX), Math.abs(planet.screenSpeedY)) / 1000
+		let maxScreenSpeed_px_ms = Math.max(Math.abs(body.screenSpeedX), Math.abs(body.screenSpeedY)) / 1000
 		let optimalInterval_ms = (maxScreenSpeed_px_ms > 0) ? (simulationAccuracy / maxScreenSpeed_px_ms) : simulationAccuracy
 
 		let timeToSimulate_ms = (timeLeft_ms > optimalInterval_ms) ? optimalInterval_ms : timeLeft_ms
 		simulateNewPosition(timeToSimulate_ms / 1000)
 		timeSimulated_ms += timeToSimulate_ms
 	}
-	// console.log(`screenSpeedX=${planet.screenSpeedX?.toFixed(2)}, screenSpeedY=${planet.screenSpeedY?.toFixed(2)}`)
+	// console.log(`screenSpeedX=${body.screenSpeedX?.toFixed(2)}, screenSpeedY=${body.screenSpeedY?.toFixed(2)}`)
 
 	// let colculationTime = performance.now() - time_ms
 	// if (colculationTime > 30)
 	// 	console.log('timeDiff=', (colculationTime).toFixed(4))
 
-	planet.style.transform = `translate(calc(-50% + ${ellipsCentr_x - planet.position.x}px), calc(-50% + ${ellipsCentr_y - planet.position.y}px))`
-	planet.prevTime_ms = time_ms
+	body.style.transform = `translate(calc(-50% + ${body.origin_x - body.position.x}px), calc(-50% + ${body.origin_y - body.position.y}px))`
+	body.prevTime_ms = time_ms
 
-	animationId = requestAnimationFrame(animateFrame)
-	amimationID1.textContent = animationId
+	body.animationId = requestAnimationFrame(time => animateFrame(time, body))
 
 	function simulateNewPosition(timePast_s) {
 		// console.log('timePast=', (timePast_s).toFixed(4))
 
 		let timePastSimulation = timePast_s * simulationSpeedup
 
-		let R = Math.sqrt((planet.position.x - c)**2 + planet.position.y**2)
-		let speed = calcOrbitalSpeed(R*sizeKoef, a*sizeKoef)
+		let R = Math.sqrt((body.position.x)**2 + body.position.y**2) * body.sizeKoef
+		let speed = calcOrbitalSpeed(R, body.a)
 
-		let gravAcceleration = -mu / (R*sizeKoef)**2
+		let gravAcceleration = -mu / (R)**2
 		let gravSpeed = gravAcceleration * timePastSimulation
-		let gravAngle = Math.atan2(planet.position.y, planet.position.x - c)
+		let gravAngle = Math.atan2(body.position.y, body.position.x)
 		let gravSpeedX = gravSpeed * Math.cos(gravAngle)
 		let gravSpeedY = gravSpeed * Math.sin(gravAngle)
 
-		planet.speedX += gravSpeedX
-		planet.speedY += gravSpeedY
+		body.speedX += gravSpeedX
+		body.speedY += gravSpeedY
 
-		planet.screenSpeedX = (planet.speedX / sizeKoef) * simulationSpeedup
-		planet.screenSpeedY = (planet.speedY / sizeKoef) * simulationSpeedup
+		body.screenSpeedX = (body.speedX / body.sizeKoef) * simulationSpeedup
+		body.screenSpeedY = (body.speedY / body.sizeKoef) * simulationSpeedup
 
-		planet.position.x += planet.screenSpeedX * timePast_s
-		planet.position.y += planet.screenSpeedY * timePast_s
+		body.position.x += body.screenSpeedX * timePast_s
+		body.position.y += body.screenSpeedY * timePast_s
 	}
 
 }
 
 checkboxPause.onclick = function (event) {
 	if (!checkboxPause.checked) {
-		if (animationId == 0) {
+		if (planet.animationId == 0) {
 			planet.prevTime_ms = performance.now()
-			animationId = requestAnimationFrame(animateFrame)
+			planet.animationId = requestAnimationFrame(time => animateFrame(time, planet))
 		}
 	} else {
-		cancelAnimationFrame(animationId)
-		animationId = 0
+		cancelAnimationFrame(planet.animationId)
+		planet.animationId = 0
 	}
 }
 
 function clamp(number, min, max) {
 	return Math.max(min, Math.min(number, max))
 }
-
-let duration_ms = 5000;
-let animationStartTime = performance.now()
-
-
-function animate(time, body)
-{
-	let timeFraction = (time - animationStartTime) / duration_ms
-	if (timeFraction > 1) timeFraction = 1
-
-	let x = timeFraction * 1000
-	let y = body.y
-
-	body.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
-
-	if (timeFraction < 1) {
-		let animationId = requestAnimationFrame(time => animate(time, body))
-		// amimationID2.textContent = animationId
-	}
-
-}
-
-buttonTestAnim.onclick = function (event) {
-	animationStartTime = performance.now()
-	planet2.y = 100
-	requestAnimationFrame(time => animate(time, planet2))
-	planet3.y = 150
-	requestAnimationFrame(time => animate(time, planet3))
-}
-
 
 
 </script>
