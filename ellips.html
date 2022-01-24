@@ -31,7 +31,7 @@ canvas {
 }
 
 
-#planet {
+.planet {
 	border: 2px solid green;
 	border-radius: 50%;
 	position: absolute;
@@ -43,6 +43,11 @@ canvas {
 	transform: translate(-50%, -50%);
 }
 
+.animationIds {
+	width: 150px;
+	display: inline-block;
+}
+
 </style>
 
 	<title>Ellips</title>
@@ -52,9 +57,13 @@ canvas {
 <body>
 	<div class="panelMenu" id="panelMenu">
 
-		<button class="buttonMenu" onclick="clear_overlay()">clear</button> 
-		<button class="buttonMenu" onclick="run()">run</button> 
-		<button class="buttonSetE_Earth" onclick="setEccentricityEarth()">Set e of Earth</button> 
+		<button onclick="clear_overlay()">clear</button> 
+		<button onclick="run()">run</button> 
+		<button onclick="setEccentricityEarth()">Set e of Earth</button> 
+		<button id="buttonTestAnim" >TestAnim</button> 
+
+		<span class="animationIds" id="amimationID1">amimationID1</span>
+		<span class="animationIds" id="amimationID2">amimationID2</span>
  
 	</div>
 
@@ -68,28 +77,32 @@ canvas {
 	<label for="cbPause">PauseAnimation</label>
 	<br>
 	<div id="canvas_conteiner" >
-		<canvas id="overlay" width="1100" height="500"></canvas>
-		<div  id="planet" ></div>
+		<canvas id="scene" width="1100" height="500"></canvas>
+		<div class="planet" id="planet"></div>
+		<div class="planet" id="planet2"></div>
+		<div class="planet" id="planet3"></div>
 	</div>
 	<canvas id="chart" width="1200" height="200"></canvas>	
 
 <script>
 
+let scene = document.getElementById('scene')
 let chart = document.getElementById('chart')
 let planet = document.getElementById('planet')
 let checkboxPause = document.getElementById('cbPause')
 let inputEccentricity = document.getElementById('inputEccentricity');
 let inputPeroid = document.getElementById('inputPeroid');
+let buttonTestAnim = document.getElementById('buttonTestAnim');
 inputEccentricity.onchange = run
 
 
-						
+
 function clear_overlay() {
 	let c = document.getElementById('overlay')
 	c.getContext('2d').clearRect(0, 0, c.width, c.height)
 
 	c = document.getElementById('chart')
-	c.getContext('2d').clearRect(0, 0, c.width, c.height)	
+	c.getContext('2d').clearRect(0, 0, c.width, c.height)
 }
 
 
@@ -118,9 +131,6 @@ let sizeKoef = 0
 let ellipsCentr_x = 0
 let ellipsCentr_y = 0
 
-let dataHistory = []
-let color_i = 0
-let animationStartTime = 0
 let Period = 0
 let simulationSpeedup = 1
 let animationId = 0
@@ -134,7 +144,7 @@ function run() {
 
 	Perihelion = 50
 	a = Perihelion / (1 - e) //Semi-major axis
-	b = a *  Math.sqrt(1 - e*e) //Semi-minor axis
+	b = a * Math.sqrt(1 - e*e) //Semi-minor axis
 	c = a * e
 	Aphelion = a + c
 
@@ -142,9 +152,9 @@ function run() {
 
 	ellipsCentr_x = a + 20
 	ellipsCentr_y = 250
-	
 
-	let ctx = document.getElementById('overlay').getContext('2d')
+
+	let ctx = scene.getContext('2d')
 
 
 	ctx.lineWidth = 5
@@ -164,22 +174,23 @@ function run() {
 	let LenOrbit = 4 * (Math.PI * a*b + (a-b)**2) / (a+b)
 
 	let l1 = 3 * ((a-b) / (a+b))**2
-	let LenOrbit2 = Math.PI * (a+b) * (1 + l1 / (10 + Math.sqrt(4 - l1)) )  
+	let LenOrbit2 = Math.PI * (a+b) * (1 + l1 / (10 + Math.sqrt(4 - l1)) )
 
 	Period = 2 * Math.PI * Math.sqrt((a * sizeKoef)**3 / mu)
-	
+
 	console.log(`--------- Perihelion=${Perihelion.toFixed(1)}, Aphelion=${Aphelion.toFixed(1)}, e=${e} ----------`)
 
 
 	let meanSpeedReached = false
 	let halfPeriodReached = false
-	let prevPos 
+	let prevPos
 	let prevSpeed = 0
 	let sumIntervals = 0
 	let numMeanSpeedReached = 0
 	let numHalfPeriodReached = 0
 
-	dataHistory = []
+	let dataHistory = []
+	let color_i = 0
 
 	let startDaySeconds = new Date("01.01.2022").getTime()
 
@@ -223,16 +234,16 @@ function run() {
 			halfPeriodReached = true
 			numHalfPeriodReached = alpha
 		}
-		else	
+		else
 			ctx.strokeStyle = `hsl(${hue}, 100%, ${lit}%)`
- 
+
 		ctx.strokeRect(ellipsCentr_x - x, ellipsCentr_y + y, 1, 1)
 
 		prevPos = curPos
 		prevSpeed = speed
 
 		console.log(`alpha=${alpha}, x=${x.toFixed(1)}, y=${y.toFixed(1)}, speed=${speed.toFixed(0)}, t=${(interval/secInDay).toFixed(2)},`,
-		`date= ${date.toLocaleString('ru')}, dateIdeal= ${dateIdeal.toLocaleString('ru')}, diff=${((date-dateIdeal) / (1000*60*60)).toFixed(2)}`)
+			`date= ${date.toLocaleString('ru')}, dateIdeal= ${dateIdeal.toLocaleString('ru')}, diff=${((date-dateIdeal) / (1000*60*60)).toFixed(2)}`)
 		//  `Epot=${Epot.toExponential(1)}, Ekin=${Ekin.toExponential(1)}, Epot-Ekin=${(Epot - Ekin).toExponential(1)}`
 
 		dataHistory.push({alpha, x, y, speed, interval, date, dateIdeal, diff: date-dateIdeal, Epot, Ekin})
@@ -252,12 +263,14 @@ function run() {
 	color_i++
 
 	let chartHeight = chart.height - 20
-	drawGraph( dataHistory.map( el => el['speed']),    'speed',    0,   10, color, 190, chartHeight, n => n.toFixed(0))
-	drawGraph( dataHistory.map( el => el['interval']), 'interval', 200, 10, color, 190, chartHeight, n => (n / secInDay).toFixed(2))
-	drawGraph( dataHistory.map( el => el['date']),     'date',     400, 10, color, 190, chartHeight, n => (new Date(n)).toLocaleDateString())
-	drawGraph( dataHistory.map( el => el['diff']),     'diff, h',  600, 10, color, 190, chartHeight, n => (n / (1000*60*60)).toFixed(2))
-	drawGraph( dataHistory.map( el => el['Epot']),     'Epot',     800, 10, color, 190, chartHeight, n => n.toExponential(1))
-	drawGraph( dataHistory.map( el => el['Ekin']),     'Ekin',     1000, 10, color, 190, chartHeight, n => n.toExponential(1))
+	/* eslint-disable no-multi-spaces*/
+	drawGraph( dataHistory.map( el => el['speed']),    'speed',    chart, 0,   10, color, 190, chartHeight, n => n.toFixed(0))
+	drawGraph( dataHistory.map( el => el['interval']), 'interval', chart, 200, 10, color, 190, chartHeight, n => (n / secInDay).toFixed(2))
+	drawGraph( dataHistory.map( el => el['date']),     'date',     chart, 400, 10, color, 190, chartHeight, n => (new Date(n)).toLocaleDateString())
+	drawGraph( dataHistory.map( el => el['diff']),     'diff, h',  chart, 600, 10, color, 190, chartHeight, n => (n / (1000*60*60)).toFixed(2))
+	drawGraph( dataHistory.map( el => el['Epot']),     'Epot',     chart, 800, 10, color, 190, chartHeight, n => n.toExponential(1))
+	drawGraph( dataHistory.map( el => el['Ekin']),     'Ekin',     chart, 1000, 10, color, 190, chartHeight, n => n.toExponential(1))
+	/* eslint-enable */
 
 	startAnimation(inputPeroid.value)
 }
@@ -266,11 +279,11 @@ run()
 
 
 
-function drawGraph(data, param, start_x, start_y,  color='pink', width=100, height=50, format = n => n.toFixed(2)) {
-	let ctx = document.getElementById('chart').getContext('2d')
-	
+function drawGraph(data, param, canvas, start_x, start_y, color='pink', width=100, height=50, format = n => n.toFixed(2)) {
+	let ctx = canvas.getContext('2d')
+
 	let max = Math.max(...data)
-	let min =  Math.min(...data)
+	let min = Math.min(...data)
 
 	let range = max - min
 	if (range < min/1000000) range = min/1000000
@@ -288,7 +301,7 @@ function drawGraph(data, param, start_x, start_y,  color='pink', width=100, heig
 	ctx.moveTo(start_x, axisX_y)
 	ctx.lineTo(start_x + width, axisX_y)
 	ctx.stroke()
-	
+
 	ctx.beginPath() // Y axis
 	ctx.moveTo(start_x, start_y)
 	ctx.lineTo(start_x, start_y + height)
@@ -340,7 +353,7 @@ const simulationAccuracy = 0.01 //smaller is better
 
 function animateFrame(time_ms) {
 	let timePast_ms = (time_ms - planet.prevTime_ms)
-	if (timePast_ms < 0) timePast_ms = 0 
+	if (timePast_ms < 0) timePast_ms = 0
 
 	let timeSimulated_ms = 0
 	while (timePast_ms > timeSimulated_ms) {
@@ -354,7 +367,7 @@ function animateFrame(time_ms) {
 		timeSimulated_ms += timeToSimulate_ms
 	}
 	// console.log(`screenSpeedX=${planet.screenSpeedX?.toFixed(2)}, screenSpeedY=${planet.screenSpeedY?.toFixed(2)}`)
-	
+
 	// let colculationTime = performance.now() - time_ms
 	// if (colculationTime > 30)
 	// 	console.log('timeDiff=', (colculationTime).toFixed(4))
@@ -363,6 +376,7 @@ function animateFrame(time_ms) {
 	planet.prevTime_ms = time_ms
 
 	animationId = requestAnimationFrame(animateFrame)
+	amimationID1.textContent = animationId
 
 	function simulateNewPosition(timePast_s) {
 		// console.log('timePast=', (timePast_s).toFixed(4))
@@ -387,7 +401,7 @@ function animateFrame(time_ms) {
 		planet.position.x += planet.screenSpeedX * timePast_s
 		planet.position.y += planet.screenSpeedY * timePast_s
 	}
-		
+
 }
 
 checkboxPause.onclick = function (event) {
@@ -405,6 +419,37 @@ checkboxPause.onclick = function (event) {
 function clamp(number, min, max) {
 	return Math.max(min, Math.min(number, max))
 }
+
+let duration_ms = 5000;
+let animationStartTime = performance.now()
+
+
+function animate(time, body)
+{
+	let timeFraction = (time - animationStartTime) / duration_ms
+	if (timeFraction > 1) timeFraction = 1
+
+	let x = timeFraction * 1000
+	let y = body.y
+
+	body.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
+
+	if (timeFraction < 1) {
+		let animationId = requestAnimationFrame(time => animate(time, body))
+		// amimationID2.textContent = animationId
+	}
+
+}
+
+buttonTestAnim.onclick = function (event) {
+	animationStartTime = performance.now()
+	planet2.y = 100
+	requestAnimationFrame(time => animate(time, planet2))
+	planet3.y = 150
+	requestAnimationFrame(time => animate(time, planet3))
+}
+
+
 
 </script>
 
