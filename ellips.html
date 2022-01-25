@@ -121,31 +121,49 @@ const secInDay = 60 * 60 * 24
 let simulationSpeedup = 1
 
 function run() {
-
 	const e = inputEccentricity.value
 	// const a = 200 //Semi-major axis
 	// const c = a * e
 	// const Perihelion = a - c
 	// const Aphelion = a + c
 
-	let Perihelion = 50
-	let a = Perihelion / (1 - e) //Semi-major axis
-	let b = a * Math.sqrt(1 - e*e) //Semi-minor axis
+	planet.Perihelion = Perihelion_Earth
+	planet.a = planet.Perihelion / (1 - e)
+	planet.b = planet.a * Math.sqrt(1 - e*e)
+	planet.sizeKoef = planet.Perihelion / 50
+	planet.e = e
+
+	let a = planet.a / planet.sizeKoef
+	let b = planet.b / planet.sizeKoef
 	let c = a * e
+
+	let gravityOrigin = {x: 70, y: 250}
+	planet.gravityOrigin = gravityOrigin
+
+	drawEllips(scene, planet)
+
+	// set start position and speed
+	let {x, y} = calcDotPosition2(a, b, 0)
+	planet.position = {x: x - c, y}
+	planet.speedX = 0
+	planet.speedY = calcOrbitalSpeed(planet.Perihelion, planet.a)
+	startAnimation(inputPeroid.value, planet)
+}
+
+
+function drawEllips(canvas, body) {
+
+	let Perihelion = body.Perihelion / body.sizeKoef
+	let a = body.a / body.sizeKoef
+	let b = body.b / body.sizeKoef
+
+	let c = a * body.e
 	let Aphelion = a + c
 
-	let sizeKoef = Perihelion_Earth / Perihelion
-	planet.sizeKoef = sizeKoef
-	planet.Perihelion = Perihelion_Earth
-	planet.a = a * sizeKoef
-	planet.b = b * sizeKoef
+	let ellipsCentr_x = body.gravityOrigin.x + c
+	let ellipsCentr_y = body.gravityOrigin.y
 
-	let ellipsCentr_x = a + 20
-	let ellipsCentr_y = 250
-
-
-
-	let ctx = scene.getContext('2d')
+	let ctx = canvas.getContext('2d')
 
 
 	ctx.lineWidth = 5
@@ -159,18 +177,18 @@ function run() {
 	ctx.lineWidth = 1
 	ctx.strokeStyle = 'black'
 
-	let speed_Perihelion = calcOrbitalSpeed(Perihelion*sizeKoef, planet.a)
-	let speed_Aphelion = calcOrbitalSpeed(Aphelion*sizeKoef, planet.a)
+	let speed_Perihelion = calcOrbitalSpeed(body.Perihelion, body.a)
+	let speed_Aphelion = calcOrbitalSpeed(Aphelion*body.sizeKoef, body.a)
 
 	let LenOrbit = 4 * (Math.PI * a*b + (a-b)**2) / (a+b)
 
 	let l1 = 3 * ((a-b) / (a+b))**2
 	let LenOrbit2 = Math.PI * (a+b) * (1 + l1 / (10 + Math.sqrt(4 - l1)) )
 
-	let Period = 2 * Math.PI * Math.sqrt((planet.a)**3 / mu)
-	planet.Period = Period
+	let Period = 2 * Math.PI * Math.sqrt((body.a)**3 / mu)
+	body.Period = Period
 
-	console.log(`--------- Perihelion=${Perihelion.toFixed(1)}, Aphelion=${Aphelion.toFixed(1)}, e=${e} ----------`)
+	console.log(`--------- Perihelion=${Perihelion.toFixed(1)}, Aphelion=${Aphelion.toFixed(1)}, e=${body.e} ----------`)
 
 
 	let meanSpeedReached = false
@@ -192,7 +210,7 @@ function run() {
 		let {x, y} = curPos
 		let R = Math.sqrt((x - c)**2 + y**2)
 
-		let speed = calcOrbitalSpeed(R*sizeKoef, planet.a)
+		let speed = calcOrbitalSpeed(R*body.sizeKoef, body.a)
 
 		let deltaX = 0
 		let deltaY = 0
@@ -202,7 +220,7 @@ function run() {
 		}
 
 		let prevDistance = Math.sqrt(deltaX**2 + deltaY**2)
-		let interval = prevDistance*sizeKoef / speed
+		let interval = prevDistance * body.sizeKoef / speed
 		sumIntervals += interval
 
 		let date = new Date(startDaySeconds + sumIntervals * 1000)
@@ -210,7 +228,7 @@ function run() {
 		let dateIdeal = new Date(startDaySeconds + dayIdeal *secInDay*1000)
 
 
-		let Epot = Mass_Earth * (mu / (R*sizeKoef))
+		let Epot = Mass_Earth * (mu / (R * body.sizeKoef))
 		let Ekin = Mass_Earth * speed**2 / 2
 
 		let hue = Math.round(15 + (1 - (speed / speed_Perihelion)) * 60)
@@ -241,89 +259,17 @@ function run() {
 		dataHistory.push({alpha, x, y, speed, interval, date, dateIdeal, diff: date-dateIdeal, Epot, Ekin})
 	}
 
-	console.log(`L orbit1=${(LenOrbit*sizeKoef).toFixed(0)}`)
-	console.log(`L orbit2=${(LenOrbit2*sizeKoef).toFixed(0)}`)
+	console.log(`L orbit1=${(LenOrbit * body.sizeKoef).toFixed(0)}`)
+	console.log(`L orbit2=${(LenOrbit2 * body.sizeKoef).toFixed(0)}`)
 
 	let T_days = Period/secInDay
 	console.log(`T orbit=${T_days.toFixed(2)} days, ${(T_days/365.25).toFixed(1)} years`)
 	console.log(`sumIntervals=${(sumIntervals / secInDay).toFixed(2)} days, error=${(Period - sumIntervals).toFixed(2)} s`)
 
 	console.log(`numMeanSpeedReached=${numMeanSpeedReached}, numHalfPeriodReached=${numHalfPeriodReached}`)
-
-	let colors = ['Blue', 'Green', 'Brown', 'Pink', 'Orange', 'Purple', 'Grey', 'Yellow', 'Black', 'Red']
-	let color = colors[color_i % colors.length]
-	color_i++
-
-	let chartHeight = chart.height - 20
-	/* eslint-disable no-multi-spaces*/
-	drawGraph( dataHistory.map( el => el['speed']),    'speed',    chart, 0,   10, color, 190, chartHeight, n => n.toFixed(0))
-	drawGraph( dataHistory.map( el => el['interval']), 'interval', chart, 200, 10, color, 190, chartHeight, n => (n / secInDay).toFixed(2))
-	drawGraph( dataHistory.map( el => el['date']),     'date',     chart, 400, 10, color, 190, chartHeight, n => (new Date(n)).toLocaleDateString())
-	drawGraph( dataHistory.map( el => el['diff']),     'diff, h',  chart, 600, 10, color, 190, chartHeight, n => (n / (1000*60*60)).toFixed(2))
-	drawGraph( dataHistory.map( el => el['Epot']),     'Epot',     chart, 800, 10, color, 190, chartHeight, n => n.toExponential(1))
-	drawGraph( dataHistory.map( el => el['Ekin']),     'Ekin',     chart, 1000, 10, color, 190, chartHeight, n => n.toExponential(1))
-	/* eslint-enable */
-
-	// set gravity origin (Sun)
-	planet.origin_x = ellipsCentr_x - c
-	planet.origin_y = ellipsCentr_y
-	// set start position and speed
-	let {x, y} = calcDotPosition2(a, b, 0)
-	planet.position = {x: x - c, y}
-	planet.speedX = 0
-	planet.speedY = calcOrbitalSpeed(planet.Perihelion, planet.a)
-
-	startAnimation(inputPeroid.value, planet)
 }
 run()
 
-
-
-
-function drawGraph(data, param, canvas, start_x, start_y, color='pink', width=100, height=50, format = n => n.toFixed(2)) {
-	let ctx = canvas.getContext('2d')
-
-	let max = Math.max(...data)
-	let min = Math.min(...data)
-
-	let range = max - min
-	if (range < min/1000000) range = min/1000000
-	let yscale = height / range
-	// let xscale = 1
-	let xscale = width / data.length
-	//console.log(label, yscale)
-
-	let axis_color = 'black'
-	let axisX_y = start_y + Math.trunc(height / 2)
-
-	ctx.lineWidth = 1
-	ctx.beginPath() // X axis
-	ctx.strokeStyle = axis_color
-	ctx.moveTo(start_x, axisX_y)
-	ctx.lineTo(start_x + width, axisX_y)
-	ctx.stroke()
-
-	ctx.beginPath() // Y axis
-	ctx.moveTo(start_x, start_y)
-	ctx.lineTo(start_x, start_y + height)
-	ctx.stroke()
-
-	// ctx.lineWidth = 2
-	ctx.fillStyle = color
-	ctx.font = "12px Arial" // label
-	ctx.fillText(param, start_x + width / 2, start_y)
-
-	ctx.fillText(format(max), start_x + 5, start_y + 12)
-	ctx.fillText(format(min), start_x + 5, height + 12)
-
-	ctx.moveTo(start_x, height)
-	ctx.beginPath()
-	ctx.strokeStyle = color
-	for (let i=0; i<data.length; i++) {
-		ctx.lineTo(start_x + i * xscale, height + start_y - (data[i] - min)*yscale)
-	}
-	ctx.stroke()
-}
 
 
 function calcDotPosition2(a, b, alpha) {
@@ -370,7 +316,7 @@ function animateFrame(time_ms, body) {
 	// if (colculationTime > 30)
 	// 	console.log('timeDiff=', (colculationTime).toFixed(4))
 
-	body.style.transform = `translate(calc(-50% + ${body.origin_x - body.position.x}px), calc(-50% + ${body.origin_y - body.position.y}px))`
+	body.style.transform = `translate(calc(-50% + ${body.gravityOrigin.x - body.position.x}px), calc(-50% + ${body.gravityOrigin.y - body.position.y}px))`
 	body.prevTime_ms = time_ms
 
 	body.animationId = requestAnimationFrame(time => animateFrame(time, body))
