@@ -57,15 +57,16 @@ canvas {
 <body>
 	<div class="panelMenu" id="panelMenu">
 
-		<button onclick="clear_overlay()">clear</button> 
-		<button onclick="run()">run</button> 
-		<button onclick="setEccentricityEarth()">Set e of Earth</button> 
-		<button id="buttonTestAnim" >TestAnim</button> 
+		<button onclick="clearScene()">clear</button> 
+		<button onclick="runEarth()">Earth</button> 
+		<button onclick="runEarthX3()">Earth x 3</button> 
+		<button onclick="lightSun()" id="buttonTestAnim" >Light Sun</button> 
  
 	</div>
 
 	<label for="inputEccentricity">Eccentricity:</label>
 	<input type="number" max="1" step="0.1" value="0.5" id="inputEccentricity">
+	<button onclick="setEccentricityEarth()">Set e of Earth</button> 
 
 	<label for="inputPeroid">Peroid:</label>
 	<input type="number" max="100000" step="1000" value="5000" id="inputPeroid">	
@@ -89,50 +90,81 @@ let planet3 = document.getElementById('planet3')
 let checkboxPause = document.getElementById('cbPause')
 let inputEccentricity = document.getElementById('inputEccentricity');
 let inputPeroid = document.getElementById('inputPeroid');
-let buttonTestAnim = document.getElementById('buttonTestAnim');
-inputEccentricity.onchange = run
+inputEccentricity.onchange = () => lastAction()
 
 
 
-function clear_overlay() {
+function clearScene() {
 	scene.getContext('2d').clearRect(0, 0, scene.width, scene.height)
 }
 
 
 function setEccentricityEarth() {
 	inputEccentricity.value = eccentricity_Earth
-	run()
+	lastAction()
 }
 
 const G = 6.6743E-11
 const Mass_Sun = 1.9885E+30
-const mu = G * Mass_Sun
 const Perihelion_Earth = 147_098_290_000
 const eccentricity_Earth = 0.01671123
-const Mass_Earth = 5.9726E24
+const Mass_Earth = 5.9726E+24
 
 const secInDay = 60 * 60 * 24
 
-
 let simulationSpeedup = 1
 let bodies = []
+let Sun = {}
+var lastAction
 
-function run() {
+function runEarth() {
+	if (lastAction != runEarth) clearScene()
+	lastAction = runEarth
+
 	const eccentricity = inputEccentricity.value
 
 	let screenGravityOrigin = {x: 170, y: 250}
 	cancelAnimationFrame(animationId)
 	bodies = []
 
-	setupOrbitParameters(planet, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
+	Sun.Mass = Mass_Sun
+	Sun.position = {x: 0, y: 0}
+	bodies.push(Sun)
+
+	setupOrbitParameters(planet, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
 	drawEllips(scene, planet)
 	bodies.push(planet)
 
-	setupOrbitParameters(planet2, Perihelion_Earth, eccentricity, Math.PI * 1 / 3, screenGravityOrigin, 50)
+	simulationSpeedup = planet.Period / (inputPeroid.value / 1000)
+	animationPrevTime_ms = performance.now()
+
+	animationId = requestAnimationFrame(animateFrame)
+}
+runEarth()
+
+function runEarthX3() {
+	if (lastAction != runEarthX3) clearScene()
+	lastAction = runEarthX3
+
+	const eccentricity = inputEccentricity.value
+
+	let screenGravityOrigin = {x: Math.round(scene.width / 2), y: 250}
+	cancelAnimationFrame(animationId)
+	bodies = []
+
+	Sun.Mass = Mass_Sun
+	Sun.position = {x: 0, y: 0}
+	bodies.push(Sun)
+
+	setupOrbitParameters(planet, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
+	drawEllips(scene, planet)
+	bodies.push(planet)
+
+	setupOrbitParameters(planet2, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI * 1 / 3, screenGravityOrigin, 50)
 	drawEllips(scene, planet2)
 	bodies.push(planet2)
 
-	setupOrbitParameters(planet3, Perihelion_Earth, eccentricity, Math.PI * 5 / 3, screenGravityOrigin, 50)
+	setupOrbitParameters(planet3, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI * 5 / 3, screenGravityOrigin, 50)
 	drawEllips(scene, planet3)
 	bodies.push(planet3)
 
@@ -143,10 +175,11 @@ function run() {
 }
 
 
-function setupOrbitParameters(body, Perihelion, eccentricity, ArgumentOfPeriapsis, gravityOrigin, screenPerihelion) {
+function setupOrbitParameters(body, Mass, Perihelion, eccentricity, ArgumentOfPeriapsis, gravityOrigin, screenPerihelion) {
 	// const Perihelion = a - c
 	// const Aphelion = a + c
 
+	body.Mass = Mass
 	body.Perihelion = Perihelion
 	body.a = body.Perihelion / (1 - eccentricity)
 	body.b = body.a * Math.sqrt(1 - eccentricity**2)
@@ -155,7 +188,7 @@ function setupOrbitParameters(body, Perihelion, eccentricity, ArgumentOfPeriapsi
 	body.gravityOrigin = gravityOrigin
 	body.omega = ArgumentOfPeriapsis // angle from perihelion point to current position
 
-	body.Period = 2 * Math.PI * Math.sqrt((body.a)**3 / mu)
+	body.Period = 2 * Math.PI * Math.sqrt((body.a)**3 / (G * Sun.Mass))
 
 	let a = body.a / body.sizeKoef
 	let b = body.b / body.sizeKoef
@@ -282,7 +315,6 @@ function drawEllips(canvas, body) {
 
 	console.log(`numMeanSpeedReached=${numMeanSpeedReached}, numHalfPeriodReached=${numHalfPeriodReached}`)
 }
-run()
 
 
 
@@ -294,7 +326,7 @@ function calcEllipsPoint(a, b, alpha) {
 }
 
 function calcOrbitalSpeed(r, a) {
-	return Math.sqrt(mu*(2/r - 1/a))
+	return Math.sqrt((G * Sun.Mass)*(2/r - 1/a))
 }
 
 
@@ -308,24 +340,26 @@ function animateFrame(time_ms) {
 	if (timePast_ms < 0) timePast_ms = 0
 
 	for (let body of bodies) {
-		let timeSimulated_ms = 0
-		while (timePast_ms > timeSimulated_ms) {
-			let timeLeft_ms = timePast_ms - timeSimulated_ms
+		if (body != Sun) {
+			let timeSimulated_ms = 0
+			while (timePast_ms > timeSimulated_ms) {
+				let timeLeft_ms = timePast_ms - timeSimulated_ms
 
-			let maxScreenSpeed_px_ms = Math.max(Math.abs(body.screenSpeedX), Math.abs(body.screenSpeedY), 1000) / 1000
-			let optimalInterval_ms = (maxScreenSpeed_px_ms > 0) ? (simulationAccuracy / maxScreenSpeed_px_ms) : simulationAccuracy
+				let maxScreenSpeed_px_ms = Math.max(Math.abs(body.screenSpeedX), Math.abs(body.screenSpeedY), 1000) / 1000
+				let optimalInterval_ms = (maxScreenSpeed_px_ms > 0) ? (simulationAccuracy / maxScreenSpeed_px_ms) : simulationAccuracy
 
-			let timeToSimulate_ms = (timeLeft_ms > optimalInterval_ms) ? optimalInterval_ms : timeLeft_ms
-			simulateNewPosition(timeToSimulate_ms / 1000, body)
-			timeSimulated_ms += timeToSimulate_ms
+				let timeToSimulate_ms = (timeLeft_ms > optimalInterval_ms) ? optimalInterval_ms : timeLeft_ms
+				simulateNewPosition(timeToSimulate_ms / 1000, body)
+				timeSimulated_ms += timeToSimulate_ms
+			}
+			// console.log(`screenSpeedX=${body.screenSpeedX?.toFixed(2)}, screenSpeedY=${body.screenSpeedY?.toFixed(2)}`)
+
+			// let colculationTime = performance.now() - time_ms
+			// if (colculationTime > 30)
+			// 	console.log('timeDiff=', (colculationTime).toFixed(4))
+
+			body.style.transform = `translate(calc(-50% + ${body.gravityOrigin.x + body.position.x}px), calc(-50% + ${body.gravityOrigin.y + body.position.y}px))`
 		}
-		// console.log(`screenSpeedX=${body.screenSpeedX?.toFixed(2)}, screenSpeedY=${body.screenSpeedY?.toFixed(2)}`)
-
-		// let colculationTime = performance.now() - time_ms
-		// if (colculationTime > 30)
-		// 	console.log('timeDiff=', (colculationTime).toFixed(4))
-
-		body.style.transform = `translate(calc(-50% + ${body.gravityOrigin.x + body.position.x}px), calc(-50% + ${body.gravityOrigin.y + body.position.y}px))`
 	}
 
 	animationPrevTime_ms = time_ms
@@ -336,17 +370,22 @@ function animateFrame(time_ms) {
 
 		let timePastSimulation = timePast_s * simulationSpeedup
 
-		let R = Math.sqrt((body.position.x)**2 + body.position.y**2) * body.sizeKoef
-		let speed = calcOrbitalSpeed(R, body.a)
+		for (let body2 of bodies)
+			if (body != body2) {
+				let deltaX = body.position.x - body2.position.x
+				let deltaY = body.position.y - body2.position.y
 
-		let gravAcceleration = -mu / (R)**2
-		let gravSpeed = gravAcceleration * timePastSimulation
-		let gravAngle = Math.atan2(body.position.y, body.position.x)
-		let gravSpeedX = gravSpeed * Math.cos(gravAngle)
-		let gravSpeedY = gravSpeed * Math.sin(gravAngle)
+				let R = Math.sqrt(deltaX**2 + deltaY**2) * body.sizeKoef
 
-		body.speedX += gravSpeedX
-		body.speedY += gravSpeedY
+				let gravAcceleration = -G * (body.Mass + body2.Mass) / R**2
+				let gravSpeed = gravAcceleration * timePastSimulation
+				let gravAngle = Math.atan2(deltaY, deltaX)
+				let gravSpeedX = gravSpeed * Math.cos(gravAngle)
+				let gravSpeedY = gravSpeed * Math.sin(gravAngle)
+
+				body.speedX += gravSpeedX
+				body.speedY += gravSpeedY
+			}
 
 		body.screenSpeedX = (body.speedX / body.sizeKoef) * simulationSpeedup
 		body.screenSpeedY = (body.speedY / body.sizeKoef) * simulationSpeedup
@@ -383,6 +422,43 @@ checkboxPause.onclick = function (event) {
 function clamp(number, min, max) {
 	return Math.max(min, Math.min(number, max))
 }
+
+function lightSun() {
+	if (lastAction != lightSun) clearScene()
+	lastAction = lightSun
+
+	const eccentricity = inputEccentricity.value
+
+	const Mass_Sun = 1.9885E+15
+	const Mass_Earth = 5.9726E+14
+
+
+	let screenGravityOrigin = {x: Math.round(scene.width / 2), y: 250}
+	cancelAnimationFrame(animationId)
+	bodies = []
+
+	Sun.Mass = Mass_Sun
+	Sun.position = {x: 0, y: 0}
+	bodies.push(Sun)
+
+	setupOrbitParameters(planet, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
+	drawEllips(scene, planet)
+	bodies.push(planet)
+
+	setupOrbitParameters(planet2, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI * 1 / 3, screenGravityOrigin, 50)
+	drawEllips(scene, planet2)
+	bodies.push(planet2)
+
+	setupOrbitParameters(planet3, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI * 5 / 3, screenGravityOrigin, 50)
+	drawEllips(scene, planet3)
+	bodies.push(planet3)
+
+	simulationSpeedup = planet.Period / (inputPeroid.value / 1000)
+	animationPrevTime_ms = performance.now()
+
+	animationId = requestAnimationFrame(animateFrame)
+}
+
 
 
 </script>
