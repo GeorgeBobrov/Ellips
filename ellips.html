@@ -79,13 +79,13 @@ canvas {
 		<div class="planet" id="planet2"></div>
 		<div class="planet" id="planet3"></div>
 	</div>
-	<canvas id="chart" width="1200" height="200"></canvas>	
 
 <script>
 
 let scene = document.getElementById('scene')
-let chart = document.getElementById('chart')
 let planet = document.getElementById('planet')
+let planet2 = document.getElementById('planet2')
+let planet3 = document.getElementById('planet3')
 let checkboxPause = document.getElementById('cbPause')
 let inputEccentricity = document.getElementById('inputEccentricity');
 let inputPeroid = document.getElementById('inputPeroid');
@@ -95,11 +95,7 @@ inputEccentricity.onchange = run
 
 
 function clear_overlay() {
-	let c = document.getElementById('overlay')
-	c.getContext('2d').clearRect(0, 0, c.width, c.height)
-
-	c = document.getElementById('chart')
-	c.getContext('2d').clearRect(0, 0, c.width, c.height)
+	scene.getContext('2d').clearRect(0, 0, scene.width, scene.height)
 }
 
 
@@ -119,35 +115,62 @@ const secInDay = 60 * 60 * 24
 
 
 let simulationSpeedup = 1
+let bodies = []
 
 function run() {
-	const e = inputEccentricity.value
-	// const a = 200 //Semi-major axis
-	// const c = a * e
+	const eccentricity = inputEccentricity.value
+
+	let screenGravityOrigin = {x: 170, y: 250}
+	cancelAnimationFrame(animationId)
+	bodies = []
+
+	setupOrbitParameters(planet, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
+	drawEllips(scene, planet)
+	bodies.push(planet)
+
+	setupOrbitParameters(planet2, Perihelion_Earth, eccentricity, Math.PI * 1 / 3, screenGravityOrigin, 50)
+	drawEllips(scene, planet2)
+	bodies.push(planet2)
+
+	setupOrbitParameters(planet3, Perihelion_Earth, eccentricity, Math.PI * 5 / 3, screenGravityOrigin, 50)
+	drawEllips(scene, planet3)
+	bodies.push(planet3)
+
+	simulationSpeedup = planet.Period / (inputPeroid.value / 1000)
+	animationPrevTime_ms = performance.now()
+
+	animationId = requestAnimationFrame(animateFrame)
+}
+
+
+function setupOrbitParameters(body, Perihelion, eccentricity, ArgumentOfPeriapsis, gravityOrigin, screenPerihelion) {
 	// const Perihelion = a - c
 	// const Aphelion = a + c
 
-	planet.Perihelion = Perihelion_Earth
-	planet.a = planet.Perihelion / (1 - e)
-	planet.b = planet.a * Math.sqrt(1 - e*e)
-	planet.sizeKoef = planet.Perihelion / 50
-	planet.e = e
+	body.Perihelion = Perihelion
+	body.a = body.Perihelion / (1 - eccentricity)
+	body.b = body.a * Math.sqrt(1 - eccentricity**2)
+	body.sizeKoef = body.Perihelion / screenPerihelion
+	body.e = eccentricity
+	body.gravityOrigin = gravityOrigin
+	body.omega = ArgumentOfPeriapsis // angle from perihelion point to current position
 
-	let a = planet.a / planet.sizeKoef
-	let b = planet.b / planet.sizeKoef
-	let c = a * e
+	body.Period = 2 * Math.PI * Math.sqrt((body.a)**3 / mu)
 
-	let gravityOrigin = {x: 70, y: 250}
-	planet.gravityOrigin = gravityOrigin
-
-	drawEllips(scene, planet)
+	let a = body.a / body.sizeKoef
+	let b = body.b / body.sizeKoef
+	let c = a * eccentricity
 
 	// set start position and speed
-	let {x, y} = calcDotPosition2(a, b, 0)
-	planet.position = {x: x - c, y}
-	planet.speedX = 0
-	planet.speedY = calcOrbitalSpeed(planet.Perihelion, planet.a)
-	startAnimation(inputPeroid.value, planet)
+	let PerihelionPos = calcEllipsPoint(a, b, 0)
+	PerihelionPos.x = PerihelionPos.x - c // from ellips center to focus
+
+	PerihelionPos = rotatePoint(PerihelionPos, body.omega)
+	body.position = PerihelionPos
+
+	let speedPerihelion = calcOrbitalSpeed(body.Perihelion, body.a)
+	body.speedX = speedPerihelion * Math.sin(-body.omega)
+	body.speedY = speedPerihelion * Math.cos(-body.omega)
 }
 
 
@@ -160,18 +183,14 @@ function drawEllips(canvas, body) {
 	let c = a * body.e
 	let Aphelion = a + c
 
-	let ellipsCentr_x = body.gravityOrigin.x + c
-	let ellipsCentr_y = body.gravityOrigin.y
-
 	let ctx = canvas.getContext('2d')
-
 
 	ctx.lineWidth = 5
 	ctx.strokeStyle = 'orange'
 
 	// Draw Ellips focus
 	ctx.beginPath()
-	ctx.ellipse(ellipsCentr_x - c, ellipsCentr_y, 4, 4, 0, 0, 2 * Math.PI)
+	ctx.ellipse(body.gravityOrigin.x, body.gravityOrigin.y, 4, 4, 0, 0, 2 * Math.PI)
 	ctx.stroke()
 
 	ctx.lineWidth = 1
@@ -184,9 +203,6 @@ function drawEllips(canvas, body) {
 
 	let l1 = 3 * ((a-b) / (a+b))**2
 	let LenOrbit2 = Math.PI * (a+b) * (1 + l1 / (10 + Math.sqrt(4 - l1)) )
-
-	let Period = 2 * Math.PI * Math.sqrt((body.a)**3 / mu)
-	body.Period = Period
 
 	console.log(`--------- Perihelion=${Perihelion.toFixed(1)}, Aphelion=${Aphelion.toFixed(1)}, e=${body.e} ----------`)
 
@@ -206,10 +222,13 @@ function drawEllips(canvas, body) {
 
 	for (let alpha = 0; alpha <= 360; alpha+=3) {
 		let alphaRad = alpha/180*Math.PI
-		let curPos = calcDotPosition2(a, b, alphaRad)
-		let {x, y} = curPos
-		let R = Math.sqrt((x - c)**2 + y**2)
+		let curPos = calcEllipsPoint(a, b, alphaRad)
+		curPos.x = curPos.x - c // from ellips center to focus
 
+		curPos = rotatePoint(curPos, body.omega)
+		let {x, y} = curPos
+
+		let R = Math.sqrt(x**2 + y**2)
 		let speed = calcOrbitalSpeed(R*body.sizeKoef, body.a)
 
 		let deltaX = 0
@@ -228,9 +247,6 @@ function drawEllips(canvas, body) {
 		let dateIdeal = new Date(startDaySeconds + dayIdeal *secInDay*1000)
 
 
-		let Epot = Mass_Earth * (mu / (R * body.sizeKoef))
-		let Ekin = Mass_Earth * speed**2 / 2
-
 		let hue = Math.round(15 + (1 - (speed / speed_Perihelion)) * 60)
 		let lit = Math.round(50 - (1 - (speed / speed_Perihelion)) * 15)
 		let meanSpeed = (speed_Aphelion + speed_Perihelion) / 2
@@ -239,7 +255,7 @@ function drawEllips(canvas, body) {
 			ctx.strokeStyle = `hsl(230, 100%, 40%)`
 			meanSpeedReached = true
 			numMeanSpeedReached = alpha
-		} else if (sumIntervals > (Period / 4) && !halfPeriodReached) {
+		} else if (sumIntervals > (body.Period / 4) && !halfPeriodReached) {
 			ctx.strokeStyle = `hsl(120, 100%, 20%)`
 			halfPeriodReached = true
 			numHalfPeriodReached = alpha
@@ -247,24 +263,22 @@ function drawEllips(canvas, body) {
 		else
 			ctx.strokeStyle = `hsl(${hue}, 100%, ${lit}%)`
 
-		ctx.strokeRect(ellipsCentr_x - x, ellipsCentr_y + y, 1, 1)
+		ctx.strokeRect(body.gravityOrigin.x + x, body.gravityOrigin.y + y, 1, 1)
 
 		prevPos = curPos
 		prevSpeed = speed
 
 		console.log(`alpha=${alpha}, x=${x.toFixed(1)}, y=${y.toFixed(1)}, speed=${speed.toFixed(0)}, t=${(interval/secInDay).toFixed(2)},`,
 			`date= ${date.toLocaleString('ru')}, dateIdeal= ${dateIdeal.toLocaleString('ru')}, diff=${((date-dateIdeal) / (1000*60*60)).toFixed(2)}`)
-		//  `Epot=${Epot.toExponential(1)}, Ekin=${Ekin.toExponential(1)}, Epot-Ekin=${(Epot - Ekin).toExponential(1)}`
 
-		dataHistory.push({alpha, x, y, speed, interval, date, dateIdeal, diff: date-dateIdeal, Epot, Ekin})
 	}
 
 	console.log(`L orbit1=${(LenOrbit * body.sizeKoef).toFixed(0)}`)
 	console.log(`L orbit2=${(LenOrbit2 * body.sizeKoef).toFixed(0)}`)
 
-	let T_days = Period/secInDay
+	let T_days = body.Period/secInDay
 	console.log(`T orbit=${T_days.toFixed(2)} days, ${(T_days/365.25).toFixed(1)} years`)
-	console.log(`sumIntervals=${(sumIntervals / secInDay).toFixed(2)} days, error=${(Period - sumIntervals).toFixed(2)} s`)
+	console.log(`sumIntervals=${(sumIntervals / secInDay).toFixed(2)} days, error=${(body.Period - sumIntervals).toFixed(2)} s`)
 
 	console.log(`numMeanSpeedReached=${numMeanSpeedReached}, numHalfPeriodReached=${numHalfPeriodReached}`)
 }
@@ -272,7 +286,7 @@ run()
 
 
 
-function calcDotPosition2(a, b, alpha) {
+function calcEllipsPoint(a, b, alpha) {
 	let x = a * Math.cos(alpha)
 	let y = b * Math.sin(alpha)
 
@@ -284,44 +298,40 @@ function calcOrbitalSpeed(r, a) {
 }
 
 
-
-function startAnimation(duration_ms, body) {
-	simulationSpeedup = body.Period / (duration_ms / 1000)
-	body.prevTime_ms = performance.now()
-
-	cancelAnimationFrame(body.animationId)
-	body.animationId = requestAnimationFrame(time => animateFrame(time, body))
-}
+var animationPrevTime_ms
+var animationId
 
 const simulationAccuracy = 0.01 //smaller is better 
 
-function animateFrame(time_ms, body) {
-	let timePast_ms = (time_ms - body.prevTime_ms)
+function animateFrame(time_ms) {
+	let timePast_ms = (time_ms - animationPrevTime_ms)
 	if (timePast_ms < 0) timePast_ms = 0
 
-	let timeSimulated_ms = 0
-	while (timePast_ms > timeSimulated_ms) {
-		let timeLeft_ms = timePast_ms - timeSimulated_ms
+	for (let body of bodies) {
+		let timeSimulated_ms = 0
+		while (timePast_ms > timeSimulated_ms) {
+			let timeLeft_ms = timePast_ms - timeSimulated_ms
 
-		let maxScreenSpeed_px_ms = Math.max(Math.abs(body.screenSpeedX), Math.abs(body.screenSpeedY)) / 1000
-		let optimalInterval_ms = (maxScreenSpeed_px_ms > 0) ? (simulationAccuracy / maxScreenSpeed_px_ms) : simulationAccuracy
+			let maxScreenSpeed_px_ms = Math.max(Math.abs(body.screenSpeedX), Math.abs(body.screenSpeedY), 1000) / 1000
+			let optimalInterval_ms = (maxScreenSpeed_px_ms > 0) ? (simulationAccuracy / maxScreenSpeed_px_ms) : simulationAccuracy
 
-		let timeToSimulate_ms = (timeLeft_ms > optimalInterval_ms) ? optimalInterval_ms : timeLeft_ms
-		simulateNewPosition(timeToSimulate_ms / 1000)
-		timeSimulated_ms += timeToSimulate_ms
+			let timeToSimulate_ms = (timeLeft_ms > optimalInterval_ms) ? optimalInterval_ms : timeLeft_ms
+			simulateNewPosition(timeToSimulate_ms / 1000, body)
+			timeSimulated_ms += timeToSimulate_ms
+		}
+		// console.log(`screenSpeedX=${body.screenSpeedX?.toFixed(2)}, screenSpeedY=${body.screenSpeedY?.toFixed(2)}`)
+
+		// let colculationTime = performance.now() - time_ms
+		// if (colculationTime > 30)
+		// 	console.log('timeDiff=', (colculationTime).toFixed(4))
+
+		body.style.transform = `translate(calc(-50% + ${body.gravityOrigin.x + body.position.x}px), calc(-50% + ${body.gravityOrigin.y + body.position.y}px))`
 	}
-	// console.log(`screenSpeedX=${body.screenSpeedX?.toFixed(2)}, screenSpeedY=${body.screenSpeedY?.toFixed(2)}`)
 
-	// let colculationTime = performance.now() - time_ms
-	// if (colculationTime > 30)
-	// 	console.log('timeDiff=', (colculationTime).toFixed(4))
+	animationPrevTime_ms = time_ms
+	animationId = requestAnimationFrame(animateFrame)
 
-	body.style.transform = `translate(calc(-50% + ${body.gravityOrigin.x - body.position.x}px), calc(-50% + ${body.gravityOrigin.y - body.position.y}px))`
-	body.prevTime_ms = time_ms
-
-	body.animationId = requestAnimationFrame(time => animateFrame(time, body))
-
-	function simulateNewPosition(timePast_s) {
+	function simulateNewPosition(timePast_s, body) {
 		// console.log('timePast=', (timePast_s).toFixed(4))
 
 		let timePastSimulation = timePast_s * simulationSpeedup
@@ -347,15 +357,26 @@ function animateFrame(time_ms, body) {
 
 }
 
+function rotatePoint(point, gamma) {
+	let R = Math.sqrt(point.x**2 + point.y**2)
+	let alpha = Math.atan2(point.y, point.x)
+	let beta = alpha + gamma
+	let x = R * Math.cos(beta)
+	let y = R * Math.sin(beta)
+
+	return {x, y}
+}
+
+
 checkboxPause.onclick = function (event) {
 	if (!checkboxPause.checked) {
-		if (planet.animationId == 0) {
-			planet.prevTime_ms = performance.now()
-			planet.animationId = requestAnimationFrame(time => animateFrame(time, planet))
+		if (animationId == 0) {
+			animationPrevTime_ms = performance.now()
+			animationId = requestAnimationFrame(animateFrame)
 		}
 	} else {
-		cancelAnimationFrame(planet.animationId)
-		planet.animationId = 0
+		cancelAnimationFrame(animationId)
+		animationId = 0
 	}
 }
 
