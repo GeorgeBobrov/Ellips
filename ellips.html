@@ -12,22 +12,23 @@ body {
 }
 
 
-.panelMenu {
+header {
 	padding: 0.3rem 0.5rem;
+	display: flex;
 }  
 
 
-#canvas_conteiner {
+#panelCanvas {
 	position: relative;
 	width: 1100px;
-	height: 500px;  
+	height: calc(100vh - 4rem);  
 	margin-bottom: 5px;
+	/* border: 1px solid #3453eb; */
 }
 
 canvas {
-	border: 1px solid #4d4e53;
-	/* color:#4d5353; */
-	/* position: absolute; */
+	/* border: 1px solid #4d4e53; */
+	display: flex;
 }
 
 
@@ -37,8 +38,8 @@ canvas {
 	position: absolute;
 	width: 5px;
 	height: 5px;  
-	left: 1px;
-	top: 1px;
+	left: 0px;
+	top: 0px;
 
 	transform: translate(-50%, -50%);
 }
@@ -48,6 +49,27 @@ canvas {
 	display: inline-block;
 }
 
+input[type="number"] {
+	width: 100px
+}
+
+table.panelMasses {
+	border: 1px solid #cdcdcd;
+	margin-left: 1em;
+	padding: 0 0.5rem;
+}
+
+
+.panelMenu {
+	border: 1px solid #cdcdcd;
+	padding: 0.3rem 0.5rem;
+
+}
+
+.panelButtons {
+	margin-bottom: 0.4em;	
+}
+
 </style>
 
 	<title>Ellips</title>
@@ -55,26 +77,48 @@ canvas {
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 </head>
 <body>
-	<div class="panelMenu" id="panelMenu">
+	<header>
+		<div class="panelMenu">
+			<div class="panelButtons">
+				<button onclick="clearScene()">Clear</button> 
+				<button onclick="runPlanet()">1 Planet</button> 
+				<button onclick="runPlanetX3()">3 Planets</button> 
+				<button onclick="runPlanetX2_180()">2 Planets 180&deg;</button> 
+				<button onclick="runPlanetX2_60()">2 Planets 60&deg;</button> 
+			</div>
+			<div class="panelSettings">
+				<label for="inputEccentricity">Eccentricity:</label>
+				<input type="number" max="1" step="0.1" value="0.5" id="inputEccentricity">
+				<button onclick="setEccentricityEarth()">Set e of Earth</button> 
 
-		<button onclick="clearScene()">clear</button> 
-		<button onclick="runEarth()">Earth</button> 
-		<button onclick="runEarthX3()">Earth x 3</button> 
-		<button onclick="lightSun()" id="buttonTestAnim" >Light Sun</button> 
- 
-	</div>
+				<label for="inputPeroid">Peroid:</label>
+				<input type="number" max="100000" step="1000" value="5000" id="inputPeroid">	
 
-	<label for="inputEccentricity">Eccentricity:</label>
-	<input type="number" max="1" step="0.1" value="0.5" id="inputEccentricity">
-	<button onclick="setEccentricityEarth()">Set e of Earth</button> 
+				<input type = "checkbox" id="cbPause" >
+				<label for="cbPause" id="labelPause">PauseAnimation</label>
+				<br>
+			</div>
+		</div>
+		<table class="panelMasses">
+			<tr class="panelMass">
+				<td><label for="inputStarMass">Star Mass:</label>
+				<td><input type="number" max="1e35" value="1.9885e+30" id="inputStarMass">
+				<td><button onclick="setSunMass()">Sun</button> 
+				<td><button onclick="setLightStarMass()">Light</button> 
+			</tr>
 
-	<label for="inputPeroid">Peroid:</label>
-	<input type="number" max="100000" step="1000" value="5000" id="inputPeroid">	
+			<tr class="panelMass">
+				<td><label for="inputPlanetMass">Planet Mass:</label>
+				<td><input type="number" max="1e35" value="5.9726e+24" id="inputPlanetMass">
+				<td><button onclick="setEarthMass()">Earth</button> 
+				<td><button onclick="setLightPlanetMass()">Light</button>
+			</tr>
+		</table>
 
-	<input type = "checkbox" id="cbPause" >
-	<label for="cbPause">PauseAnimation</label>
-	<br>
-	<div id="canvas_conteiner" >
+	</header>
+
+
+	<div id="panelCanvas" >
 		<canvas id="scene" width="1100" height="500"></canvas>
 		<div class="planet" id="planet"></div>
 		<div class="planet" id="planet2"></div>
@@ -90,8 +134,23 @@ let planet3 = document.getElementById('planet3')
 let checkboxPause = document.getElementById('cbPause')
 let inputEccentricity = document.getElementById('inputEccentricity');
 let inputPeroid = document.getElementById('inputPeroid');
+let inputStarMass = document.getElementById('inputStarMass');
+let inputPlanetMass = document.getElementById('inputPlanetMass');
+let labelPause = document.getElementById('labelPause');
+let header = document.querySelector('header');
+let panelCanvas = document.getElementById('panelCanvas');
+
 inputEccentricity.onchange = () => lastAction()
 
+
+let newHeight = window.innerHeight - header.clientHeight - 20
+let newWidth = window.innerWidth - 20
+panelCanvas.style.height = newHeight + "px"
+panelCanvas.style.width = newWidth + "px"
+scene.style.height = newHeight + "px"
+scene.style.width = newWidth + "px"
+scene.height = newHeight
+scene.width = newWidth
 
 
 function clearScene() {
@@ -104,71 +163,95 @@ function setEccentricityEarth() {
 	lastAction()
 }
 
-const G = 6.6743E-11
-const Mass_Sun = 1.9885E+30
+function setSunMass() {
+	inputStarMass.value = Mass_Sun
+	lastAction()
+}
+
+function setLightStarMass() {
+	inputStarMass.value = '2e+15'
+	lastAction()
+}
+
+
+function setEarthMass() {
+	inputPlanetMass.value = Mass_Earth
+	lastAction()
+}
+
+function setLightPlanetMass() {
+	inputPlanetMass.value = '5e+14'
+	lastAction()
+}
+
+const G = 6.6743e-11
+const Mass_Sun = 1.9885e+30
 const Perihelion_Earth = 147_098_290_000
 const eccentricity_Earth = 0.01671123
-const Mass_Earth = 5.9726E+24
+const Mass_Earth = 5.9726e+24
 
 const secInDay = 60 * 60 * 24
 
 let simulationSpeedup = 1
 let bodies = []
-let Sun = {}
+let Star = {}
 var lastAction
 
-function runEarth() {
-	if (lastAction != runEarth) clearScene()
-	lastAction = runEarth
+function runPlanet() {
+	if (lastAction != runPlanet) clearScene()
+	lastAction = runPlanet
 
-	const eccentricity = inputEccentricity.value
+	const eccentricity = +inputEccentricity.value
 
 	let screenGravityOrigin = {x: 170, y: 250}
 	cancelAnimationFrame(animationId)
 	bodies = []
 
-	Sun.Mass = Mass_Sun
-	Sun.position = {x: 0, y: 0}
-	bodies.push(Sun)
+	Star.Mass = +inputStarMass.value
+	Star.position = {x: 0, y: 0}
+	bodies.push(Star)
 
-	setupOrbitParameters(planet, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
+	setupOrbitParameters(planet, +inputPlanetMass.value, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
 	drawEllips(scene, planet)
 	bodies.push(planet)
 
-	simulationSpeedup = planet.Period / (inputPeroid.value / 1000)
+	planet2.style.transform = ''
+	planet3.style.transform = ''
+
+	simulationSpeedup = planet.Period / (+inputPeroid.value / 1000)
 	animationPrevTime_ms = performance.now()
 
 	animationId = requestAnimationFrame(animateFrame)
 }
-runEarth()
+runPlanet()
 
-function runEarthX3() {
-	if (lastAction != runEarthX3) clearScene()
-	lastAction = runEarthX3
+function runPlanetX3() {
+	if (lastAction != runPlanetX3) clearScene()
+	lastAction = runPlanetX3
 
-	const eccentricity = inputEccentricity.value
+	const eccentricity = +inputEccentricity.value
 
 	let screenGravityOrigin = {x: Math.round(scene.width / 2), y: 250}
 	cancelAnimationFrame(animationId)
 	bodies = []
 
-	Sun.Mass = Mass_Sun
-	Sun.position = {x: 0, y: 0}
-	bodies.push(Sun)
+	Star.Mass = +inputStarMass.value
+	Star.position = {x: 0, y: 0}
+	bodies.push(Star)
 
-	setupOrbitParameters(planet, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
+	setupOrbitParameters(planet, +inputPlanetMass.value, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
 	drawEllips(scene, planet)
 	bodies.push(planet)
 
-	setupOrbitParameters(planet2, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI * 1 / 3, screenGravityOrigin, 50)
+	setupOrbitParameters(planet2, +inputPlanetMass.value, Perihelion_Earth, eccentricity, Math.PI * 1 / 3, screenGravityOrigin, 50)
 	drawEllips(scene, planet2)
 	bodies.push(planet2)
 
-	setupOrbitParameters(planet3, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI * 5 / 3, screenGravityOrigin, 50)
+	setupOrbitParameters(planet3, +inputPlanetMass.value, Perihelion_Earth, eccentricity, Math.PI * 5 / 3, screenGravityOrigin, 50)
 	drawEllips(scene, planet3)
 	bodies.push(planet3)
 
-	simulationSpeedup = planet.Period / (inputPeroid.value / 1000)
+	simulationSpeedup = planet.Period / (+inputPeroid.value / 1000)
 	animationPrevTime_ms = performance.now()
 
 	animationId = requestAnimationFrame(animateFrame)
@@ -188,7 +271,7 @@ function setupOrbitParameters(body, Mass, Perihelion, eccentricity, ArgumentOfPe
 	body.gravityOrigin = gravityOrigin
 	body.omega = ArgumentOfPeriapsis // angle from perihelion point to current position
 
-	body.Period = 2 * Math.PI * Math.sqrt((body.a)**3 / (G * Sun.Mass))
+	body.Period = 2 * Math.PI * Math.sqrt((body.a)**3 / (G * Star.Mass))
 
 	let a = body.a / body.sizeKoef
 	let b = body.b / body.sizeKoef
@@ -326,7 +409,7 @@ function calcEllipsPoint(a, b, alpha) {
 }
 
 function calcOrbitalSpeed(r, a) {
-	return Math.sqrt((G * Sun.Mass)*(2/r - 1/a))
+	return Math.sqrt((G * Star.Mass)*(2/r - 1/a))
 }
 
 
@@ -339,28 +422,48 @@ function animateFrame(time_ms) {
 	let timePast_ms = (time_ms - animationPrevTime_ms)
 	if (timePast_ms < 0) timePast_ms = 0
 
-	for (let body of bodies) {
-		if (body != Sun) {
-			let timeSimulated_ms = 0
-			while (timePast_ms > timeSimulated_ms) {
-				let timeLeft_ms = timePast_ms - timeSimulated_ms
+	let timeSimulated_ms = 0
+	while (timePast_ms > timeSimulated_ms) {
+		let timeLeft_ms = timePast_ms - timeSimulated_ms
 
-				let maxScreenSpeed_px_ms = Math.max(Math.abs(body.screenSpeedX), Math.abs(body.screenSpeedY), 1000) / 1000
-				let optimalInterval_ms = (maxScreenSpeed_px_ms > 0) ? (simulationAccuracy / maxScreenSpeed_px_ms) : simulationAccuracy
+		let maxScreenSpeed_px_s = 0
 
-				let timeToSimulate_ms = (timeLeft_ms > optimalInterval_ms) ? optimalInterval_ms : timeLeft_ms
-				simulateNewPosition(timeToSimulate_ms / 1000, body)
-				timeSimulated_ms += timeToSimulate_ms
+		for (let body of bodies)
+			if (body != Star) {
+				maxScreenSpeed_px_s = Math.max(Math.abs(body.screenSpeedX), Math.abs(body.screenSpeedY), maxScreenSpeed_px_s)
 			}
-			// console.log(`screenSpeedX=${body.screenSpeedX?.toFixed(2)}, screenSpeedY=${body.screenSpeedY?.toFixed(2)}`)
 
-			// let colculationTime = performance.now() - time_ms
-			// if (colculationTime > 30)
-			// 	console.log('timeDiff=', (colculationTime).toFixed(4))
+		labelPause.style.color = (maxScreenSpeed_px_s > 1000) ? 'red' : 'unset'
+		if (maxScreenSpeed_px_s > 1000) {
+			maxScreenSpeed_px_s = 1000
+		}
 
+		let maxScreenSpeed_px_ms = maxScreenSpeed_px_s / 1000
+		let optimalInterval_ms = (maxScreenSpeed_px_ms > 0) ? (simulationAccuracy / maxScreenSpeed_px_ms) : simulationAccuracy
+
+		let timeToSimulate_ms = (timeLeft_ms > optimalInterval_ms) ? optimalInterval_ms : timeLeft_ms
+		let timeToSimulate_s = timeToSimulate_ms / 1000
+
+		for (let body of bodies)
+			if (body != Star) {
+				simulateNewPosition(timeToSimulate_s, body)
+			}
+
+		for (let body of bodies)
+			if (body != Star) {
+				body.position.x += body.screenSpeedX * timeToSimulate_s
+				body.position.y += body.screenSpeedY * timeToSimulate_s
+			}
+
+		timeSimulated_ms += timeToSimulate_ms
+	}
+
+
+	for (let body of bodies)
+		if (body != Star) {
 			body.style.transform = `translate(calc(-50% + ${body.gravityOrigin.x + body.position.x}px), calc(-50% + ${body.gravityOrigin.y + body.position.y}px))`
 		}
-	}
+
 
 	animationPrevTime_ms = time_ms
 	animationId = requestAnimationFrame(animateFrame)
@@ -389,9 +492,6 @@ function animateFrame(time_ms) {
 
 		body.screenSpeedX = (body.speedX / body.sizeKoef) * simulationSpeedup
 		body.screenSpeedY = (body.speedY / body.sizeKoef) * simulationSpeedup
-
-		body.position.x += body.screenSpeedX * timePast_s
-		body.position.y += body.screenSpeedY * timePast_s
 	}
 
 }
@@ -423,42 +523,69 @@ function clamp(number, min, max) {
 	return Math.max(min, Math.min(number, max))
 }
 
-function lightSun() {
-	if (lastAction != lightSun) clearScene()
-	lastAction = lightSun
 
-	const eccentricity = inputEccentricity.value
 
-	const Mass_Sun = 1.9885E+15
-	const Mass_Earth = 5.9726E+14
+function runPlanetX2_180() {
+	if (lastAction != runPlanetX2_180) clearScene()
+	lastAction = runPlanetX2_180
+
+	const eccentricity = +inputEccentricity.value
 
 
 	let screenGravityOrigin = {x: Math.round(scene.width / 2), y: 250}
 	cancelAnimationFrame(animationId)
 	bodies = []
 
-	Sun.Mass = Mass_Sun
-	Sun.position = {x: 0, y: 0}
-	bodies.push(Sun)
+	Star.Mass = +inputStarMass.value
+	Star.position = {x: 0, y: 0}
+	bodies.push(Star)
 
-	setupOrbitParameters(planet, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
+	setupOrbitParameters(planet, +inputPlanetMass.value, Perihelion_Earth, eccentricity, Math.PI, screenGravityOrigin, 50)
 	drawEllips(scene, planet)
 	bodies.push(planet)
 
-	setupOrbitParameters(planet2, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI * 1 / 3, screenGravityOrigin, 50)
+	setupOrbitParameters(planet2, +inputPlanetMass.value, Perihelion_Earth, eccentricity, 0, screenGravityOrigin, 50)
 	drawEllips(scene, planet2)
 	bodies.push(planet2)
 
-	setupOrbitParameters(planet3, Mass_Earth, Perihelion_Earth, eccentricity, Math.PI * 5 / 3, screenGravityOrigin, 50)
-	drawEllips(scene, planet3)
-	bodies.push(planet3)
+	planet3.style.transform = ''
 
-	simulationSpeedup = planet.Period / (inputPeroid.value / 1000)
+	simulationSpeedup = planet.Period / (+inputPeroid.value / 1000)
 	animationPrevTime_ms = performance.now()
 
 	animationId = requestAnimationFrame(animateFrame)
 }
 
+function runPlanetX2_60() {
+	if (lastAction != runPlanetX2_60) clearScene()
+	lastAction = runPlanetX2_60
+
+	const eccentricity = +inputEccentricity.value
+
+
+	let screenGravityOrigin = {x: Math.round(scene.width / 2), y: 250}
+	cancelAnimationFrame(animationId)
+	bodies = []
+
+	Star.Mass = +inputStarMass.value
+	Star.position = {x: 0, y: 0}
+	bodies.push(Star)
+
+	setupOrbitParameters(planet, +inputPlanetMass.value, Perihelion_Earth, eccentricity, 0, screenGravityOrigin, 50)
+	drawEllips(scene, planet)
+	bodies.push(planet)
+
+	setupOrbitParameters(planet2, +inputPlanetMass.value, Perihelion_Earth, eccentricity, Math.PI * 1 / 3, screenGravityOrigin, 50)
+	drawEllips(scene, planet2)
+	bodies.push(planet2)
+
+	planet3.style.transform = ''
+
+	simulationSpeedup = planet.Period / (+inputPeroid.value / 1000)
+	animationPrevTime_ms = performance.now()
+
+	animationId = requestAnimationFrame(animateFrame)
+}
 
 
 </script>
