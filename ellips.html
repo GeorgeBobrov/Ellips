@@ -335,11 +335,16 @@ function drawEllips(canvas, body) {
 	let color_i = 0
 
 	let startDaySeconds = new Date("01.01.2022").getTime()
+	console.log(`alpha; trueAnomalyGrad; x; y; speed; day_dur; date; dateIdeal; diff`)
 
 	for (let alpha = 0; alpha <= 360; alpha+=3) {
 		let alphaRad = alpha/180*Math.PI
 		let curPos = calcEllipsPoint(a, b, alphaRad)
 		curPos.x = curPos.x - c // from ellips center to focus
+
+		let trueAnomaly = Math.atan2(curPos.y, curPos.x)
+		if (trueAnomaly < 0) trueAnomaly += Math.PI*2
+		let trueAnomalyGrad = trueAnomaly*180/Math.PI
 
 		curPos = rotatePoint(curPos, body.omega)
 		let {x, y} = curPos
@@ -359,8 +364,8 @@ function drawEllips(canvas, body) {
 		sumIntervals += interval
 
 		let date = new Date(startDaySeconds + sumIntervals * 1000)
-		let dayIdeal = alpha / 360 * 365.25
-		let dateIdeal = new Date(startDaySeconds + dayIdeal *secInDay*1000)
+		let dayMean = trueAnomalyGrad / 360 * 365.25
+		let dateMean = new Date(startDaySeconds + dayMean *secInDay*1000)
 
 
 		let hue = Math.round(15 + (1 - (speed / speed_Perihelion)) * 60)
@@ -384,8 +389,12 @@ function drawEllips(canvas, body) {
 		prevPos = curPos
 		prevSpeed = speed
 
-		console.log(`alpha=${alpha}, x=${x.toFixed(1)}, y=${y.toFixed(1)}, speed=${speed.toFixed(0)}, t=${(interval/secInDay).toFixed(2)},`,
-			`date= ${date.toLocaleString('ru')}, dateIdeal= ${dateIdeal.toLocaleString('ru')}, diff=${((date-dateIdeal) / (1000*60*60)).toFixed(2)}`)
+		// console.log(`alpha=${alpha}, x=${x.toFixed(1)}, y=${y.toFixed(1)}, speed=${speed.toFixed(0)}, t=${(interval/secInDay).toFixed(2)},`,
+		// 	`date= ${date.toLocaleString('ru')}, dateIdeal= ${dateIdeal.toLocaleString('ru')}, diff=${((date-dateIdeal) / (1000*60*60)).toFixed(2)}`)
+
+
+		console.log(`${alpha}; ${trueAnomalyGrad.toFixed(2)}; ${x.toFixed(1)}; ${y.toFixed(1)}; ${speed.toFixed(0)}; ${(interval/secInDay).toFixed(2)};`+
+			` ${date.toLocaleString('ru')}; ${dateMean.toLocaleString('ru')}; ${((date-dateMean) / (1000*60*60)).toFixed(2)}`)
 
 	}
 
