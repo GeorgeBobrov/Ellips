@@ -83,6 +83,7 @@ table.panelMasses {
 				<button onclick="clearScene()">Clear</button> 
 				<button onclick="runPlanet()">1 Planet</button> 
 				<button onclick="runPlanetX3()">3 Planets</button> 
+				<button onclick="runPlanetX3unstable()">3 Planets unstable</button> 
 				<button onclick="runPlanetX2_180()">2 Planets 180&deg;</button> 
 				<button onclick="runPlanetX2_60()">2 Planets 60&deg;</button> 
 			</div>
@@ -117,6 +118,10 @@ table.panelMasses {
 
 	</header>
 
+	<div style="margin-left: 1rem;">
+		<span>Description: </span>
+		<span id="spanDescription" ></span>
+	</div>
 
 	<div id="panelCanvas" >
 		<canvas id="scene" width="1100" height="500"></canvas>
@@ -139,6 +144,7 @@ let inputPlanetMass = document.getElementById('inputPlanetMass');
 let labelPause = document.getElementById('labelPause');
 let header = document.querySelector('header');
 let panelCanvas = document.getElementById('panelCanvas');
+let spanDescription = document.getElementById('spanDescription');
 
 inputEccentricity.onchange = () => lastAction()
 
@@ -200,6 +206,7 @@ var lastAction
 function runPlanet() {
 	if (lastAction != runPlanet) clearScene()
 	lastAction = runPlanet
+	spanDescription.textContent = ''
 
 	const eccentricity = +inputEccentricity.value
 
@@ -226,8 +233,9 @@ function runPlanet() {
 runPlanet()
 
 function runPlanetX3() {
-	if (lastAction != runPlanetX3) clearScene()
+	clearScene()
 	lastAction = runPlanetX3
+	spanDescription.textContent = ''
 
 	const eccentricity = +inputEccentricity.value
 
@@ -255,6 +263,12 @@ function runPlanetX3() {
 	animationPrevTime_ms = performance.now()
 
 	animationId = requestAnimationFrame(animateFrame)
+}
+
+function runPlanetX3unstable() {
+	inputStarMass.value = 2e+25
+	runPlanetX3()
+	spanDescription.textContent = 'If Star mass is too small, the system become unstable and falls apart after a few iterations. Try to change eccentricity'
 }
 
 
@@ -535,8 +549,9 @@ function clamp(number, min, max) {
 
 
 function runPlanetX2_180() {
-	if (lastAction != runPlanetX2_180) clearScene()
+	clearScene()
 	lastAction = runPlanetX2_180
+	spanDescription.textContent = ''
 
 	const eccentricity = +inputEccentricity.value
 
@@ -566,8 +581,12 @@ function runPlanetX2_180() {
 }
 
 function runPlanetX2_60() {
-	if (lastAction != runPlanetX2_60) clearScene()
+	setEccentricityEarth()
+	clearScene()
 	lastAction = runPlanetX2_60
+
+	inputStarMass.value = 2e+27
+	spanDescription.textContent = 'If Star mass is small, planets swap places after a while'
 
 	const eccentricity = +inputEccentricity.value
 
